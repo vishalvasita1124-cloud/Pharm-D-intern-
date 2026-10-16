@@ -94,9 +94,40 @@ export interface AdminProduct {
   id: string;
   title: string;
   slug: string;
+  description: string;
+  short_description: string;
+  category_id: string;
   price: number;
+  pages: number;
+  cover_url: string | null;
+  preview_url: string | null;
+  topics: string[];
   is_published: boolean;
   file_path: string | null;
+  updated_at: string;
+}
+
+export interface ProductInput {
+  title: string;
+  slug: string;
+  description: string;
+  short_description: string;
+  category_id: string;
+  price: number;
+  pages: number;
+  cover_url: string;
+  preview_url: string;
+  topics: string; // comma-separated
+  is_published: boolean;
+}
+
+export interface Resource {
+  id: string;
+  title: string;
+  description: string;
+  file_url: string;
+  is_free: boolean;
+  created_at: string;
   updated_at: string;
 }
 

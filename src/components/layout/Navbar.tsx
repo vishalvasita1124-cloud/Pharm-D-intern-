@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
-import { Menu, X, BookOpen, LogOut, LayoutDashboard, ChevronDown } from 'lucide-react';
+import { Menu, X, BookOpen, LogOut, LayoutDashboard, ChevronDown, ShieldCheck } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { clsx } from 'clsx';
 
@@ -106,6 +106,17 @@ export function Navbar() {
                       <LayoutDashboard className="w-4 h-4" />
                       Dashboard
                     </Link>
+                    {profile?.role === 'admin' && (
+                      <Link
+                        to="/admin"
+                        onClick={() => setUserMenuOpen(false)}
+                        id="navbar-admin-link"
+                        className="flex items-center gap-2 px-4 py-2.5 text-sm text-teal-700 hover:bg-teal-50 hover:text-teal-800 transition-colors font-semibold"
+                      >
+                        <ShieldCheck className="w-4 h-4" />
+                        Admin Panel
+                      </Link>
+                    )}
                     <hr className="my-1 border-gray-100" />
                     <button
                       onClick={handleSignOut}
@@ -182,6 +193,17 @@ export function Navbar() {
                   <LayoutDashboard className="w-4 h-4" />
                   Dashboard
                 </Link>
+                {profile?.role === 'admin' && (
+                  <Link
+                    to="/admin"
+                    onClick={() => setMobileOpen(false)}
+                    id="mobile-admin-link"
+                    className="flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold text-teal-700 hover:bg-teal-50"
+                  >
+                    <ShieldCheck className="w-4 h-4" />
+                    Admin Panel
+                  </Link>
+                )}
                 <button
                   onClick={handleSignOut}
                   className="flex w-full items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium text-red-600 hover:bg-red-50"

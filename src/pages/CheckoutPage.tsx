@@ -16,6 +16,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { getProductById } from '@/lib/notes';
 import { createOrder, submitUTR, getSiteSettings, checkUserAccess } from '@/lib/orders';
+import { sendOrderEmail } from '@/lib/admin';
 import { UpiPaymentBox } from '@/components/checkout/UpiPaymentBox';
 import { Spinner } from '@/components/ui/Spinner';
 import type { Order, Product } from '@/types';
@@ -113,6 +114,9 @@ export default function CheckoutPage() {
       setUtrSubmitting(false);
       return;
     }
+
+    // Fire-and-forget email notification
+    sendOrderEmail('payment_received', order.id);
 
     // Success — navigate to order status
     navigate(`/orders/${order.id}`);

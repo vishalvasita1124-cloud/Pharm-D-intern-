@@ -30,19 +30,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchProfile = useCallback(async (userId: string) => {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('user_id', userId)
-      .single();
+  const fetchProfile = useCallback(async (_userId: string) => {
+    // Use SECURITY DEFINER RPC — works even if profile.user_id was NULL
+    const { data, error } = await supabase.rpc('get_my_profile');
 
-    if (error) {
-      console.error('Profile fetch error:', error.message);
-      return null;
+    if (error || !data) {
+      // Fallback: direct query (works if RLS is satisfied)
+      const { data: fallback } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', _userId)
+        .single();
+      return fallback as Profile | null;
     }
     return data as Profile;
   }, []);
+
 
   const refreshProfile = useCallback(async () => {
     if (!user) return;

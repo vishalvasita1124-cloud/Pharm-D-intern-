@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import QRCode from 'qrcode';
-import { Smartphone, AlertCircle } from 'lucide-react';
+import { Smartphone, AlertCircle, ExternalLink } from 'lucide-react';
 import { CopyButton } from '@/components/ui/CopyButton';
 
 interface UpiPaymentBoxProps {
@@ -81,6 +81,16 @@ export function UpiPaymentBox({ upiId, upiName, amount, orderNumber, note }: Upi
               <CopyButton text={upiId} label="Copy UPI ID" />
             </div>
           </div>
+
+          {/* Open UPI App button */}
+          <a
+            href={upiLink}
+            id="open-upi-app-btn"
+            className="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-xl bg-teal-600 hover:bg-teal-700 active:scale-[0.98] text-white font-semibold text-sm transition-all shadow-sm"
+          >
+            <ExternalLink className="w-4 h-4" />
+            Open UPI App to Pay ₹{amount}
+          </a>
 
           {/* Order number reminder */}
           <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl p-3">

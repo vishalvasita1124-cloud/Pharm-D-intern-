@@ -13,6 +13,8 @@ import {
   RefreshCw,
   FileText,
   Users,
+  Package,
+  BookOpen,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import {
@@ -23,15 +25,19 @@ import {
   updateSetting,
   getProductsWithPdf,
   getAdminUserAccessList,
+  getResources,
+  sendOrderEmail,
 } from '@/lib/admin';
 import { getSiteSettings } from '@/lib/orders';
 import { PaymentsTable } from '@/components/admin/PaymentsTable';
 import { OrderDetailModal } from '@/components/admin/OrderDetailModal';
 import { PdfManagementTable } from '@/components/admin/PdfManagementTable';
 import { AccessManagementTable } from '@/components/admin/AccessManagementTable';
-import type { AdminOrder, AdminProduct, AdminUserAccess } from '@/types';
+import { ProductManagementPanel } from '@/components/admin/ProductManagementPanel';
+import { ResourceManagementPanel } from '@/components/admin/ResourceManagementPanel';
+import type { AdminOrder, AdminProduct, AdminUserAccess, Resource } from '@/types';
 
-type Tab = 'payments' | 'pdfs' | 'access' | 'settings';
+type Tab = 'payments' | 'pdfs' | 'products' | 'resources' | 'access' | 'settings';
 type StatusFilter = 'all' | 'pending_verification' | 'pending_payment' | 'approved' | 'rejected';
 
 export default function AdminPage() {
@@ -46,6 +52,12 @@ export default function AdminPage() {
   // PDF management state
   const [products, setProducts] = useState<AdminProduct[]>([]);
   const [productsLoading, setProductsLoading] = useState(false);
+  const [productsError, setProductsError] = useState('');
+
+  // Resources state
+  const [resources, setResources] = useState<Resource[]>([]);
+  const [resourcesLoading, setResourcesLoading] = useState(false);
+  const [resourcesError, setResourcesError] = useState('');
 
   // Access management state
   const [accessList, setAccessList] = useState<AdminUserAccess[]>([]);
@@ -70,9 +82,20 @@ export default function AdminPage() {
 
   const loadProducts = useCallback(async () => {
     setProductsLoading(true);
-    const { data } = await getProductsWithPdf();
+    setProductsError('');
+    const { data, error } = await getProductsWithPdf();
     setProducts(data);
+    if (error) setProductsError(error);
     setProductsLoading(false);
+  }, []);
+
+  const loadResources = useCallback(async () => {
+    setResourcesLoading(true);
+    setResourcesError('');
+    const { data, error } = await getResources();
+    setResources(data);
+    if (error) setResourcesError(error);
+    setResourcesLoading(false);
   }, []);
 
   const loadAccess = useCallback(async () => {
@@ -85,15 +108,18 @@ export default function AdminPage() {
   useEffect(() => { loadOrders(); }, [loadOrders]);
   useEffect(() => { getSiteSettings().then(({ data }) => setSettings(data)); }, []);
 
-  // Load PDFs/Access lazily when tab is first opened
+  // Load lazily when tab is first opened
   useEffect(() => {
-    if (tab === 'pdfs' && products.length === 0 && !productsLoading) loadProducts();
+    if ((tab === 'pdfs' || tab === 'products') && products.length === 0 && !productsLoading) loadProducts();
+    if (tab === 'resources' && resources.length === 0 && !resourcesLoading) loadResources();
     if (tab === 'access' && accessList.length === 0 && !accessLoading) loadAccess();
   }, [tab]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleApprove = async (orderId: string) => {
     const { error } = await approveOrder(orderId);
     if (error) throw new Error(error);
+    // Send approval email (fire-and-forget)
+    sendOrderEmail('approved', orderId);
     await loadOrders();
   };
 
@@ -105,6 +131,8 @@ export default function AdminPage() {
   const handleReject = async (orderId: string, reason: string) => {
     const { error } = await rejectOrder(orderId, reason);
     if (error) throw new Error(error);
+    // Send rejection email (fire-and-forget)
+    sendOrderEmail('rejected', orderId);
     setSelectedOrder(null);
     await loadOrders();
   };
@@ -144,6 +172,8 @@ export default function AdminPage() {
   const navTabs: { key: Tab; icon: React.ReactNode; label: string }[] = [
     { key: 'payments', icon: <CreditCard className="w-4 h-4" />, label: 'Payments' },
     { key: 'pdfs', icon: <FileText className="w-4 h-4" />, label: 'PDFs' },
+    { key: 'products', icon: <Package className="w-4 h-4" />, label: 'Products' },
+    { key: 'resources', icon: <BookOpen className="w-4 h-4" />, label: 'Resources' },
     { key: 'access', icon: <Users className="w-4 h-4" />, label: 'Access' },
     { key: 'settings', icon: <Settings className="w-4 h-4" />, label: 'Settings' },
   ];
@@ -196,14 +226,14 @@ export default function AdminPage() {
         {/* Main panel */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
           {/* Tab bar */}
-          <div className="border-b border-gray-100 px-6">
-            <div className="flex gap-0">
+          <div className="border-b border-gray-100 px-6 overflow-x-auto">
+            <div className="flex gap-0 min-w-max">
               {navTabs.map((t) => (
                 <button
                   key={t.key}
                   id={`admin-tab-${t.key}`}
                   onClick={() => setTab(t.key)}
-                  className={`flex items-center gap-2 px-5 py-4 text-sm font-semibold border-b-2 transition-all ${tab === t.key ? 'border-medical-600 text-medical-700' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                  className={`flex items-center gap-2 px-5 py-4 text-sm font-semibold border-b-2 transition-all whitespace-nowrap ${tab === t.key ? 'border-medical-600 text-medical-700' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
                 >
                   {t.icon}{t.label}
                 </button>
@@ -249,7 +279,7 @@ export default function AdminPage() {
                       <FileText className="w-5 h-5 text-teal-600" />
                       PDF Management
                     </h2>
-                    <p className="text-gray-500 text-sm mt-0.5">Upload, replace or remove PDFs for each product.</p>
+                    <p className="text-gray-500 text-sm mt-0.5">Upload full (paid) and preview (free) PDFs for each product.</p>
                   </div>
                   <button
                     onClick={loadProducts}
@@ -263,8 +293,90 @@ export default function AdminPage() {
                   <div className="flex justify-center py-10">
                     <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
                   </div>
+                ) : productsError ? (
+                  <div className="flex items-center gap-3 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
+                    <AlertCircle className="w-5 h-5 shrink-0" />
+                    <div>
+                      <p className="font-semibold">Failed to load products</p>
+                      <p className="text-xs mt-0.5 font-mono text-red-500">{productsError}</p>
+                    </div>
+                  </div>
                 ) : (
                   <PdfManagementTable products={products} onRefresh={loadProducts} />
+                )}
+              </div>
+            )}
+
+            {/* Products Tab */}
+            {tab === 'products' && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="font-bold text-navy flex items-center gap-2">
+                      <Package className="w-5 h-5 text-medical-600" />
+                      Product Management
+                    </h2>
+                    <p className="text-gray-500 text-sm mt-0.5">Add, edit, or remove products from your catalog.</p>
+                  </div>
+                  <button
+                    onClick={loadProducts}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 text-xs font-medium hover:bg-gray-50 transition-all"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${productsLoading ? 'animate-spin' : ''}`} />
+                    Refresh
+                  </button>
+                </div>
+                {productsLoading ? (
+                  <div className="flex justify-center py-10">
+                    <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+                  </div>
+                ) : productsError ? (
+                  <div className="flex items-center gap-3 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
+                    <AlertCircle className="w-5 h-5 shrink-0" />
+                    <div>
+                      <p className="font-semibold">Failed to load products</p>
+                      <p className="text-xs mt-0.5 font-mono text-red-500">{productsError}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <ProductManagementPanel products={products} onRefresh={loadProducts} />
+                )}
+              </div>
+            )}
+
+            {/* Resources Tab */}
+            {tab === 'resources' && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="font-bold text-navy flex items-center gap-2">
+                      <BookOpen className="w-5 h-5 text-teal-600" />
+                      Study Resources
+                    </h2>
+                    <p className="text-gray-500 text-sm mt-0.5">Upload free or paid reference materials not tied to any product.</p>
+                  </div>
+                  <button
+                    onClick={loadResources}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 text-xs font-medium hover:bg-gray-50 transition-all"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${resourcesLoading ? 'animate-spin' : ''}`} />
+                    Refresh
+                  </button>
+                </div>
+                {resourcesLoading ? (
+                  <div className="flex justify-center py-10">
+                    <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+                  </div>
+                ) : resourcesError ? (
+                  <div className="flex items-center gap-3 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
+                    <AlertCircle className="w-5 h-5 shrink-0" />
+                    <div>
+                      <p className="font-semibold">Failed to load resources</p>
+                      <p className="text-xs mt-0.5 font-mono text-red-500">{resourcesError}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <ResourceManagementPanel resources={resources} onRefresh={loadResources} />
                 )}
               </div>
             )}
