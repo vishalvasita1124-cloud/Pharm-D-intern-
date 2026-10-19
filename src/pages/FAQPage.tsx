@@ -9,6 +9,7 @@ const FAQS = [
   { q: 'Can I print the PDFs?', a: 'Yes. All notes are available as standard PDFs which can be printed or used on any device.' },
   { q: 'Will notes be updated?', a: 'Yes. Purchased notes include access to future updates for the same title, delivered through your dashboard.' },
   { q: 'Do I need to create an account?', a: 'Yes. An account is required to purchase and access notes. Registration is free and only takes a minute.' },
+  { q: 'How can I contact customer support?', a: 'You can reach us directly on WhatsApp at +91 95121 84197 or email us at pharmdintern01@gmail.com. We are happy to help with notes, payment confirmation, or clinical study queries!' },
 ];
 
 function FAQItem({ q, a }: { q: string; a: string }) {

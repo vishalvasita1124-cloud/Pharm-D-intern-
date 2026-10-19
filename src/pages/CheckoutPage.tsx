@@ -14,6 +14,9 @@ import {
   Loader2,
   Zap,
   ShieldCheck,
+  MessageCircle,
+  Phone,
+  Mail,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { getProductById } from '@/lib/notes';
@@ -39,7 +42,7 @@ export default function CheckoutPage() {
   const [utrSubmitting, setUtrSubmitting] = useState(false);
   const [utrError, setUtrError] = useState('');
   const [pageError, setPageError] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<'razorpay' | 'upi'>('razorpay');
+  const [paymentMethod, setPaymentMethod] = useState<'razorpay' | 'upi'>('upi');
   const [isProcessingRazorpay, setIsProcessingRazorpay] = useState(false);
   const [razorpayError, setRazorpayError] = useState('');
 
@@ -471,6 +474,39 @@ export default function CheckoutPage() {
                       )}
                     </button>
                   </form>
+                </div>
+
+                {/* ── Help / Support Box ── */}
+                <div className="bg-gradient-to-r from-emerald-50 to-teal-50 rounded-2xl border border-emerald-200 p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-500 text-white flex items-center justify-center shrink-0">
+                      <MessageCircle className="w-5 h-5 fill-current" />
+                    </div>
+                    <div>
+                      <p className="font-bold text-navy text-sm">Need help with your payment?</p>
+                      <p className="text-gray-600 text-xs mt-0.5">
+                        Facing any payment issue? Message us on WhatsApp or Email for instant assistance.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
+                    <a
+                      href="https://wa.me/919512184197?text=Hi%2C%20I%20need%20help%20with%20my%20payment%20on%20Pharm%20D%20Intern%20Notes"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold shadow-sm transition-colors"
+                    >
+                      <MessageCircle className="w-3.5 h-3.5 fill-current" />
+                      WhatsApp Help
+                    </a>
+                    <a
+                      href="mailto:pharmdintern01@gmail.com"
+                      className="inline-flex items-center justify-center p-2 bg-white hover:bg-gray-100 text-gray-700 rounded-xl border border-gray-200 transition-colors"
+                      title="Email Support"
+                    >
+                      <Mail className="w-4 h-4" />
+                    </a>
+                  </div>
                 </div>
               </>
             )}

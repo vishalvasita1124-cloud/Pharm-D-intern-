@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { BookOpen, Mail, Heart, Globe } from 'lucide-react';
+import { BookOpen, Mail, Heart, Phone, MessageCircle } from 'lucide-react';
 
 export function Footer() {
   const year = new Date().getFullYear();
@@ -23,20 +23,32 @@ export function Footer() {
             <p className="text-gray-400 text-sm leading-relaxed mb-5">
               Practical, concise and ward-ready notes designed for Pharm D students, interns and clinical pharmacy learners.
             </p>
-            <div className="flex gap-3">
+            <div className="flex items-center gap-2.5">
               <a
-                href="mailto:hello@pharmdintern.notes"
-                aria-label="Email"
-                className="w-9 h-9 rounded-lg bg-white/10 hover:bg-teal-600 flex items-center justify-center transition-colors"
+                href="https://wa.me/919512184197?text=Hi%2C%20I%20have%20a%20query%20about%20Pharm%20D%20Intern%20Notes"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="WhatsApp"
+                title="Chat on WhatsApp"
+                className="w-9 h-9 rounded-lg bg-emerald-600/30 hover:bg-emerald-600 text-emerald-300 hover:text-white flex items-center justify-center transition-colors border border-emerald-500/30"
               >
-                <Mail className="w-4 h-4" />
+                <MessageCircle className="w-4 h-4 fill-current" />
               </a>
               <a
-                href="#"
-                aria-label="Website"
-                className="w-9 h-9 rounded-lg bg-white/10 hover:bg-teal-600 flex items-center justify-center transition-colors"
+                href="tel:+919512184197"
+                aria-label="Call Support"
+                title="Call +91 95121 84197"
+                className="w-9 h-9 rounded-lg bg-white/10 hover:bg-teal-600 text-gray-300 hover:text-white flex items-center justify-center transition-colors"
               >
-                <Globe className="w-4 h-4" />
+                <Phone className="w-4 h-4" />
+              </a>
+              <a
+                href="mailto:pharmdintern01@gmail.com"
+                aria-label="Email Support"
+                title="Email pharmdintern01@gmail.com"
+                className="w-9 h-9 rounded-lg bg-white/10 hover:bg-teal-600 text-gray-300 hover:text-white flex items-center justify-center transition-colors"
+              >
+                <Mail className="w-4 h-4" />
               </a>
             </div>
           </div>
@@ -86,31 +98,47 @@ export function Footer() {
             </ul>
           </div>
 
-          {/* Legal */}
+          {/* Support & Contact */}
           <div>
-            <h3 className="text-white font-semibold text-sm uppercase tracking-wider mb-4">Legal</h3>
-            <ul className="space-y-2.5">
-              {[
-                { to: '/privacy', label: 'Privacy Policy' },
-                { to: '/terms', label: 'Terms & Conditions' },
-              ].map((link) => (
-                <li key={link.to}>
-                  <Link
-                    to={link.to}
-                    className="text-gray-400 hover:text-teal-400 text-sm transition-colors"
-                  >
-                    {link.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
+            <h3 className="text-white font-semibold text-sm uppercase tracking-wider mb-4">Support & Help</h3>
+            <div className="space-y-3 mb-6">
+              <a
+                href="https://wa.me/919512184197?text=Hi%2C%20I%20have%20a%20query%20about%20Pharm%20D%20Intern%20Notes"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2.5 text-xs text-gray-300 hover:text-emerald-400 transition-colors group"
+              >
+                <div className="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 group-hover:bg-emerald-500 group-hover:text-white transition-colors">
+                  <MessageCircle className="w-3.5 h-3.5 fill-current" />
+                </div>
+                <span>WhatsApp: +91 95121 84197</span>
+              </a>
 
-            <div className="mt-8">
-              <div className="inline-flex items-center gap-1.5 bg-teal-900/50 border border-teal-700/50 rounded-xl px-4 py-3">
-                <span className="text-xs text-teal-300 font-medium">
-                  📚 Designed for Pharm D learners
-                </span>
-              </div>
+              <a
+                href="tel:+919512184197"
+                className="flex items-center gap-2.5 text-xs text-gray-300 hover:text-teal-400 transition-colors group"
+              >
+                <div className="w-7 h-7 rounded-lg bg-white/10 text-gray-400 flex items-center justify-center shrink-0 group-hover:bg-teal-600 group-hover:text-white transition-colors">
+                  <Phone className="w-3.5 h-3.5" />
+                </div>
+                <span>Call: +91 95121 84197</span>
+              </a>
+
+              <a
+                href="mailto:pharmdintern01@gmail.com"
+                className="flex items-center gap-2.5 text-xs text-gray-300 hover:text-teal-400 transition-colors group"
+              >
+                <div className="w-7 h-7 rounded-lg bg-white/10 text-gray-400 flex items-center justify-center shrink-0 group-hover:bg-teal-600 group-hover:text-white transition-colors">
+                  <Mail className="w-3.5 h-3.5" />
+                </div>
+                <span className="truncate">pharmdintern01@gmail.com</span>
+              </a>
+            </div>
+
+            <div className="flex gap-4 text-xs text-gray-400 pt-3 border-t border-white/10">
+              <Link to="/privacy" className="hover:text-teal-400 transition-colors">Privacy</Link>
+              <Link to="/terms" className="hover:text-teal-400 transition-colors">Terms</Link>
+              <Link to="/faq" className="hover:text-teal-400 transition-colors">FAQ</Link>
             </div>
           </div>
         </div>

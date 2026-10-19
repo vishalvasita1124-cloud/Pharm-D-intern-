@@ -13,7 +13,7 @@ export default function PrivacyPage() {
           <p>Pharm D Intern Notes collects only the information necessary to provide our service — including your name, email, mobile number, and username at registration. We do not sell your data to third parties.</p>
           <p>Your data is stored securely on Supabase's infrastructure. We use Supabase Row Level Security to ensure you can only access your own data.</p>
           <p>Cookies are used only for session management. We use no third-party tracking cookies.</p>
-          <p>For any privacy-related queries, contact us at <a href="mailto:privacy@pharmdintern.notes" className="text-teal-600 hover:underline">privacy@pharmdintern.notes</a>.</p>
+          <p>For any privacy-related queries, contact us at <a href="mailto:pharmdintern01@gmail.com" className="text-teal-600 hover:underline">pharmdintern01@gmail.com</a> or WhatsApp at <a href="https://wa.me/919512184197" className="text-teal-600 hover:underline">+91 95121 84197</a>.</p>
         </div>
       </div>
     </div>
