@@ -96,3 +96,20 @@ export async function getSiteSettings(): Promise<{ data: Record<string, string>;
   (data as SiteSetting[]).forEach((s) => { map[s.key] = s.value; });
   return { data: map, error: null };
 }
+
+// ── Razorpay Online Payment ───────────────────────────────────────────────────
+
+/** Completes an order using Razorpay payment ID and instantly grants user access. */
+export async function completeRazorpayPayment(
+  orderId: string,
+  paymentId: string
+): Promise<{ data: Order | null; error: string | null }> {
+  const { data, error } = await supabase.rpc('complete_razorpay_payment', {
+    p_order_id: orderId,
+    p_payment_id: paymentId,
+  });
+
+  if (error) return { data: null, error: error.message };
+  return { data: data as Order, error: null };
+}
+

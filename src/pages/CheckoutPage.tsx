@@ -12,11 +12,14 @@ import {
   CreditCard,
   Send,
   Loader2,
+  Zap,
+  ShieldCheck,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { getProductById } from '@/lib/notes';
-import { createOrder, submitUTR, getSiteSettings, checkUserAccess } from '@/lib/orders';
+import { createOrder, submitUTR, getSiteSettings, checkUserAccess, completeRazorpayPayment } from '@/lib/orders';
 import { sendOrderEmail } from '@/lib/admin';
+import { openRazorpayCheckout } from '@/lib/razorpay';
 import { UpiPaymentBox } from '@/components/checkout/UpiPaymentBox';
 import { Spinner } from '@/components/ui/Spinner';
 import type { Order, Product } from '@/types';
@@ -26,7 +29,7 @@ type Step = 'loading' | 'summary' | 'payment' | 'utr' | 'error';
 export default function CheckoutPage() {
   const { productId } = useParams<{ productId: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
 
   const [product, setProduct] = useState<Product | null>(null);
   const [step, setStep] = useState<Step>('loading');
@@ -36,7 +39,9 @@ export default function CheckoutPage() {
   const [utrSubmitting, setUtrSubmitting] = useState(false);
   const [utrError, setUtrError] = useState('');
   const [pageError, setPageError] = useState('');
-  const [paymentMethod] = useState<'upi'>('upi');
+  const [paymentMethod, setPaymentMethod] = useState<'razorpay' | 'upi'>('razorpay');
+  const [isProcessingRazorpay, setIsProcessingRazorpay] = useState(false);
+  const [razorpayError, setRazorpayError] = useState('');
 
   const init = useCallback(async () => {
     if (!productId || !user) {
@@ -92,7 +97,46 @@ export default function CheckoutPage() {
   }, [init]);
 
   const handleProceedToPayment = () => {
-    setStep('payment');
+    if (paymentMethod === 'upi') {
+      setStep('payment');
+      return;
+    }
+
+    if (!order || !product) return;
+
+    setIsProcessingRazorpay(true);
+    setRazorpayError('');
+
+    openRazorpayCheckout({
+      keyId: settings.razorpay_key_id,
+      orderNumber: order.order_number,
+      productTitle: product.title,
+      amount: order.amount,
+      userEmail: profile?.email || user?.email,
+      userName: profile?.full_name || '',
+      userContact: profile?.mobile || '',
+      onSuccess: async (paymentId: string) => {
+        const { error } = await completeRazorpayPayment(order.id, paymentId);
+        if (error) {
+          setRazorpayError('Payment succeeded, but granting access failed: ' + error);
+          setIsProcessingRazorpay(false);
+          return;
+        }
+
+        // Fire-and-forget email notification
+        sendOrderEmail('approved', order.id);
+
+        // Immediate redirect to order status page where notes are unlocked!
+        navigate(`/orders/${order.id}`);
+      },
+      onError: (errMsg: string) => {
+        setRazorpayError(errMsg);
+        setIsProcessingRazorpay(false);
+      },
+      onDismiss: () => {
+        setIsProcessingRazorpay(false);
+      },
+    });
   };
 
   const handleUtrSubmit = async (e: React.FormEvent) => {
@@ -262,51 +306,103 @@ export default function CheckoutPage() {
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
                 <h2 className="font-bold text-navy mb-4 flex items-center gap-2">
                   <CreditCard className="w-5 h-5 text-teal-600" />
-                  Payment Method
+                  Select Payment Method
                 </h2>
 
                 <div className="grid gap-3">
-                  {/* UPI option */}
-                  <label className="flex items-center gap-4 p-4 border-2 border-teal-500 bg-teal-50 rounded-xl cursor-pointer">
-                    <input type="radio" name="method" value="upi" defaultChecked className="accent-teal-600" />
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-lg bg-teal-600 flex items-center justify-center">
-                        <Smartphone className="w-5 h-5 text-white" />
+                  {/* Razorpay option — instant */}
+                  <label
+                    onClick={() => { setPaymentMethod('razorpay'); setRazorpayError(''); }}
+                    className={`flex items-start gap-4 p-4 border-2 rounded-xl cursor-pointer transition-all ${
+                      paymentMethod === 'razorpay'
+                        ? 'border-teal-500 bg-teal-50/70 shadow-sm'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="method"
+                      value="razorpay"
+                      checked={paymentMethod === 'razorpay'}
+                      onChange={() => { setPaymentMethod('razorpay'); setRazorpayError(''); }}
+                      className="accent-teal-600 mt-1"
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-bold text-navy text-sm">Online Payment (Razorpay)</span>
+                        <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-full">
+                          <Zap className="w-3 h-3 fill-emerald-600 text-emerald-600" /> Instant Access
+                        </span>
                       </div>
-                      <div>
-                        <p className="font-semibold text-navy text-sm">Manual UPI</p>
-                        <p className="text-xs text-gray-500">Scan QR or pay via UPI ID — submit UTR to confirm</p>
-                      </div>
+                      <p className="text-xs text-gray-500 mt-1">
+                        UPI (Google Pay, PhonePe, Paytm), Debit/Credit Cards & Net Banking. Notes unlock immediately after payment!
+                      </p>
                     </div>
                   </label>
 
-                  {/* Razorpay — disabled */}
-                  <div className="flex items-center gap-4 p-4 border-2 border-dashed border-gray-200 rounded-xl opacity-50 cursor-not-allowed">
-                    <input type="radio" name="method" value="razorpay" disabled className="accent-blue-500" />
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-lg bg-blue-600 flex items-center justify-center">
-                        <CreditCard className="w-5 h-5 text-white" />
-                      </div>
-                      <div>
-                        <p className="font-semibold text-navy text-sm">Razorpay</p>
-                        <p className="text-xs text-gray-500">Coming in Stage 4</p>
-                      </div>
+                  {/* Manual UPI option */}
+                  <label
+                    onClick={() => { setPaymentMethod('upi'); setRazorpayError(''); }}
+                    className={`flex items-start gap-4 p-4 border-2 rounded-xl cursor-pointer transition-all ${
+                      paymentMethod === 'upi'
+                        ? 'border-teal-500 bg-teal-50/70 shadow-sm'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="method"
+                      value="upi"
+                      checked={paymentMethod === 'upi'}
+                      onChange={() => { setPaymentMethod('upi'); setRazorpayError(''); }}
+                      className="accent-teal-600 mt-1"
+                    />
+                    <div className="flex-1">
+                      <p className="font-semibold text-navy text-sm">Manual UPI QR</p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Scan static QR or pay to UPI ID and submit UTR reference. (Manual admin verification)
+                      </p>
                     </div>
-                  </div>
+                  </label>
                 </div>
 
+                {razorpayError && (
+                  <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-xl flex items-start gap-2.5 text-xs text-red-700">
+                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-500" />
+                    <div>
+                      <p className="font-semibold">Payment Notice</p>
+                      <p>{razorpayError}</p>
+                    </div>
+                  </div>
+                )}
+
                 <div className="mt-5 flex items-center gap-2 text-xs text-gray-400">
-                  <Lock className="w-3.5 h-3.5" />
-                  Your order is secure and encrypted
+                  <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                  <span>256-bit secure encrypted transaction</span>
                 </div>
 
                 <button
                   id="proceed-to-payment"
                   onClick={handleProceedToPayment}
+                  disabled={isProcessingRazorpay}
                   className="btn-primary w-full mt-6"
                 >
-                  <Smartphone className="w-4 h-4" />
-                  Proceed to Pay ₹{order.amount}
+                  {isProcessingRazorpay ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Opening Payment Gateway…
+                    </>
+                  ) : paymentMethod === 'razorpay' ? (
+                    <>
+                      <Zap className="w-4 h-4" />
+                      Pay Online ₹{order.amount} (Instant Access)
+                    </>
+                  ) : (
+                    <>
+                      <Smartphone className="w-4 h-4" />
+                      Proceed to UPI QR (₹{order.amount})
+                    </>
+                  )}
                 </button>
               </div>
             )}
