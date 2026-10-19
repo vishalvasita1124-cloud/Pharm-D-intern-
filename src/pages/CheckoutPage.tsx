@@ -15,19 +15,26 @@ import {
   Zap,
   ShieldCheck,
   MessageCircle,
-  Phone,
   Mail,
+  User,
+  Phone,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { getProductById } from '@/lib/notes';
-import { createOrder, submitUTR, getSiteSettings, checkUserAccess, completeRazorpayPayment } from '@/lib/orders';
+import { createGuestOrder, submitUTR, getSiteSettings, checkUserAccess, completeRazorpayPayment } from '@/lib/orders';
 import { sendOrderEmail } from '@/lib/admin';
 import { openRazorpayCheckout } from '@/lib/razorpay';
 import { UpiPaymentBox } from '@/components/checkout/UpiPaymentBox';
 import { Spinner } from '@/components/ui/Spinner';
 import type { Order, Product } from '@/types';
 
-type Step = 'loading' | 'summary' | 'payment' | 'utr' | 'error';
+type Step = 'loading' | 'guest_info' | 'summary' | 'payment' | 'utr' | 'error';
+
+interface GuestInfo {
+  name: string;
+  email: string;
+  mobile: string;
+}
 
 export default function CheckoutPage() {
   const { productId } = useParams<{ productId: string }>();
@@ -38,22 +45,30 @@ export default function CheckoutPage() {
   const [step, setStep] = useState<Step>('loading');
   const [order, setOrder] = useState<Order | null>(null);
   const [settings, setSettings] = useState<Record<string, string>>({});
+
+  // Guest info
+  const [guestInfo, setGuestInfo] = useState<GuestInfo>({ name: '', email: '', mobile: '' });
+  const [guestErrors, setGuestErrors] = useState<Partial<GuestInfo>>({});
+  const [guestSubmitting, setGuestSubmitting] = useState(false);
+
+  // UTR
   const [utr, setUtr] = useState('');
   const [utrSubmitting, setUtrSubmitting] = useState(false);
   const [utrError, setUtrError] = useState('');
+
   const [pageError, setPageError] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'razorpay' | 'upi'>('upi');
   const [isProcessingRazorpay, setIsProcessingRazorpay] = useState(false);
   const [razorpayError, setRazorpayError] = useState('');
 
+  /** Load product + settings. Logged-in users skip guest_info step. */
   const init = useCallback(async () => {
-    if (!productId || !user) {
+    if (!productId) {
       setStep('error');
-      setPageError('Product not found or not authenticated.');
+      setPageError('Invalid product link.');
       return;
     }
 
-    // Fetch product from Supabase
     const { data: prod, error: prodErr } = await getProductById(productId);
     if (prodErr || !prod) {
       setStep('error');
@@ -62,42 +77,88 @@ export default function CheckoutPage() {
     }
     setProduct(prod);
 
-    // Fetch settings + check access in parallel
-    const [settingsRes, accessRes] = await Promise.all([
-      getSiteSettings(),
-      checkUserAccess(productId),
-    ]);
-
+    const settingsRes = await getSiteSettings();
     if (settingsRes.data) setSettings(settingsRes.data);
 
-    // Already owns this
-    if (accessRes.hasAccess) {
-      navigate('/dashboard', { replace: true });
+    if (user) {
+      // Logged-in: check if already owns product
+      const accessRes = await checkUserAccess(productId);
+      if (accessRes.hasAccess) {
+        navigate('/dashboard', { replace: true });
+        return;
+      }
+
+      // Create order immediately using logged-in user's profile
+      const { data: ord, error: ordErr } = await createGuestOrder(
+        productId,
+        profile?.email || user.email || '',
+        profile?.full_name || '',
+        profile?.mobile || ''
+      );
+
+      if (ordErr || !ord) {
+        setStep('error');
+        setPageError(ordErr ?? 'Failed to create order.');
+        return;
+      }
+
+      setOrder(ord);
+
+      if (ord.status === 'pending_verification' || ord.status === 'approved') {
+        navigate(`/orders/${ord.id}`, { replace: true });
+        return;
+      }
+
+      setStep('summary');
+    } else {
+      // Guest: show info collection form first
+      setStep('guest_info');
+    }
+  }, [productId, user, profile, navigate]);
+
+  useEffect(() => { init(); }, [init]);
+
+  /** Validate & submit guest info, then create order */
+  const handleGuestInfoSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const errors: Partial<GuestInfo> = {};
+    if (!guestInfo.name.trim()) errors.name = 'Full name is required';
+    if (!guestInfo.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestInfo.email))
+      errors.email = 'Valid email is required';
+    if (!guestInfo.mobile.trim() || !/^\d{10}$/.test(guestInfo.mobile.replace(/\s/g, '')))
+      errors.mobile = 'Valid 10-digit mobile number is required';
+
+    if (Object.keys(errors).length > 0) {
+      setGuestErrors(errors);
       return;
     }
 
-    // Create (or retrieve) order
-    const { data: ord, error: ordErr } = await createOrder(productId);
+    setGuestSubmitting(true);
+    setGuestErrors({});
+
+    const { data: ord, error: ordErr } = await createGuestOrder(
+      productId!,
+      guestInfo.email.trim(),
+      guestInfo.name.trim(),
+      guestInfo.mobile.trim()
+    );
+
     if (ordErr || !ord) {
-      setStep('error');
-      setPageError(ordErr ?? 'Failed to create order.');
+      setGuestSubmitting(false);
+      setGuestErrors({ email: ordErr ?? 'Failed to create order. Please try again.' });
       return;
     }
 
     setOrder(ord);
+    setGuestSubmitting(false);
 
-    // If UTR already submitted, go straight to status page
     if (ord.status === 'pending_verification' || ord.status === 'approved') {
       navigate(`/orders/${ord.id}`, { replace: true });
       return;
     }
 
     setStep('summary');
-  }, [productId, user, navigate]);
-
-  useEffect(() => {
-    init();
-  }, [init]);
+  };
 
   const handleProceedToPayment = () => {
     if (paymentMethod === 'upi') {
@@ -110,14 +171,18 @@ export default function CheckoutPage() {
     setIsProcessingRazorpay(true);
     setRazorpayError('');
 
+    const contactEmail = user ? (profile?.email || user.email) : guestInfo.email;
+    const contactName  = user ? (profile?.full_name || '')     : guestInfo.name;
+    const contactPhone = user ? (profile?.mobile || '')         : guestInfo.mobile;
+
     openRazorpayCheckout({
       keyId: settings.razorpay_key_id,
       orderNumber: order.order_number,
       productTitle: product.title,
       amount: order.amount,
-      userEmail: profile?.email || user?.email,
-      userName: profile?.full_name || '',
-      userContact: profile?.mobile || '',
+      userEmail: contactEmail,
+      userName: contactName,
+      userContact: contactPhone,
       onSuccess: async (paymentId: string) => {
         const { error } = await completeRazorpayPayment(order.id, paymentId);
         if (error) {
@@ -125,20 +190,14 @@ export default function CheckoutPage() {
           setIsProcessingRazorpay(false);
           return;
         }
-
-        // Fire-and-forget email notification
         sendOrderEmail('approved', order.id);
-
-        // Immediate redirect to order status page where notes are unlocked!
         navigate(`/orders/${order.id}`);
       },
       onError: (errMsg: string) => {
         setRazorpayError(errMsg);
         setIsProcessingRazorpay(false);
       },
-      onDismiss: () => {
-        setIsProcessingRazorpay(false);
-      },
+      onDismiss: () => { setIsProcessingRazorpay(false); },
     });
   };
 
@@ -147,10 +206,7 @@ export default function CheckoutPage() {
     if (!order) return;
 
     const trimmed = utr.trim();
-    if (!trimmed) {
-      setUtrError('Please enter your UTR number');
-      return;
-    }
+    if (!trimmed) { setUtrError('Please enter your UTR number'); return; }
 
     setUtrSubmitting(true);
     setUtrError('');
@@ -162,14 +218,11 @@ export default function CheckoutPage() {
       return;
     }
 
-    // Fire-and-forget email notification
     sendOrderEmail('payment_received', order.id);
-
-    // Success — navigate to order status
     navigate(`/orders/${order.id}`);
   };
 
-  if (!product && step !== 'loading' && step !== 'error') {
+  if (!product && step !== 'loading' && step !== 'guest_info' && step !== 'error') {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -180,7 +233,6 @@ export default function CheckoutPage() {
     );
   }
 
-  // At this point, if step is summary/payment/utr, product is guaranteed non-null
   const safeProduct = product!;
 
   return (
@@ -188,13 +240,15 @@ export default function CheckoutPage() {
       {/* Header */}
       <div className="bg-gradient-to-br from-medical-950 to-medical-800 py-8">
         <div className="container-custom">
-          <Link
-            to={`/notes/${safeProduct.slug}`}
-            className="inline-flex items-center gap-2 text-white/60 hover:text-white text-sm mb-4 transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to {safeProduct.title}
-          </Link>
+          {safeProduct && (
+            <Link
+              to={`/notes/${safeProduct.slug}`}
+              className="inline-flex items-center gap-2 text-white/60 hover:text-white text-sm mb-4 transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back to {safeProduct.title}
+            </Link>
+          )}
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center">
               <ShoppingCart className="w-5 h-5 text-white" />
@@ -211,12 +265,15 @@ export default function CheckoutPage() {
 
       {/* Body */}
       <div className="container-custom py-10">
+
+        {/* ── Loading ── */}
         {step === 'loading' && (
           <div className="flex items-center justify-center py-20">
             <Spinner size="lg" />
           </div>
         )}
 
+        {/* ── Error ── */}
         {step === 'error' && (
           <div className="max-w-md mx-auto">
             <div className="bg-white rounded-2xl border border-red-100 p-8 text-center shadow-sm">
@@ -228,9 +285,127 @@ export default function CheckoutPage() {
           </div>
         )}
 
-        {(step === 'summary' || step === 'payment' || step === 'utr') && order && (
+        {/* ── Guest Info Form ── */}
+        {step === 'guest_info' && safeProduct && (
+          <div className="max-w-lg mx-auto space-y-6">
+
+            {/* Product mini card */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-medical-800 to-teal-700 flex items-center justify-center shrink-0">
+                <FileText className="w-6 h-6 text-white/80" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-bold text-navy leading-snug text-sm">{safeProduct.title}</p>
+                <p className="text-xs text-gray-400 mt-0.5 flex items-center gap-1">
+                  <Tag className="w-3 h-3" />{safeProduct.category?.name}
+                </p>
+              </div>
+              <p className="text-2xl font-extrabold text-navy shrink-0">&#8377;{safeProduct.price}</p>
+            </div>
+
+            {/* Info form */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+              <h2 className="font-bold text-navy mb-1 flex items-center gap-2">
+                <User className="w-5 h-5 text-teal-600" />
+                Your Contact Details
+              </h2>
+              <p className="text-gray-500 text-sm mb-5">
+                We need these to send your purchase confirmation and help you access the notes.
+              </p>
+
+              <form onSubmit={handleGuestInfoSubmit} className="space-y-4">
+                {/* Name */}
+                <div>
+                  <label htmlFor="guest-name" className="block text-sm font-medium text-navy mb-1.5">
+                    Full Name <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input
+                      id="guest-name"
+                      type="text"
+                      value={guestInfo.name}
+                      onChange={(e) => { setGuestInfo(p => ({ ...p, name: e.target.value })); setGuestErrors(p => ({ ...p, name: '' })); }}
+                      placeholder="e.g. Rahul Sharma"
+                      className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-medical-500/30 focus:border-medical-400"
+                    />
+                  </div>
+                  {guestErrors.name && <p className="text-red-500 text-xs mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{guestErrors.name}</p>}
+                </div>
+
+                {/* Email */}
+                <div>
+                  <label htmlFor="guest-email" className="block text-sm font-medium text-navy mb-1.5">
+                    Email Address <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input
+                      id="guest-email"
+                      type="email"
+                      value={guestInfo.email}
+                      onChange={(e) => { setGuestInfo(p => ({ ...p, email: e.target.value })); setGuestErrors(p => ({ ...p, email: '' })); }}
+                      placeholder="e.g. rahul@example.com"
+                      className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-medical-500/30 focus:border-medical-400"
+                    />
+                  </div>
+                  {guestErrors.email && <p className="text-red-500 text-xs mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{guestErrors.email}</p>}
+                </div>
+
+                {/* Mobile */}
+                <div>
+                  <label htmlFor="guest-mobile" className="block text-sm font-medium text-navy mb-1.5">
+                    Mobile Number <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input
+                      id="guest-mobile"
+                      type="tel"
+                      value={guestInfo.mobile}
+                      onChange={(e) => { setGuestInfo(p => ({ ...p, mobile: e.target.value })); setGuestErrors(p => ({ ...p, mobile: '' })); }}
+                      placeholder="10-digit mobile number"
+                      className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-medical-500/30 focus:border-medical-400"
+                      maxLength={10}
+                    />
+                  </div>
+                  {guestErrors.mobile && <p className="text-red-500 text-xs mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{guestErrors.mobile}</p>}
+                </div>
+
+                <button
+                  id="guest-info-submit"
+                  type="submit"
+                  disabled={guestSubmitting}
+                  className="btn-primary w-full mt-2"
+                >
+                  {guestSubmitting ? (
+                    <><Loader2 className="w-4 h-4 animate-spin" /> Creating Order&hellip;</>
+                  ) : (
+                    <><ShoppingCart className="w-4 h-4" /> Continue to Payment</>
+                  )}
+                </button>
+              </form>
+
+              <p className="text-center text-xs text-gray-400 mt-4">
+                Already have an account?{' '}
+                <Link to={`/login?redirect=/checkout/${productId}`} className="text-teal-600 hover:underline font-medium">
+                  Sign In
+                </Link>
+              </p>
+            </div>
+
+            {/* Trust badge */}
+            <div className="flex items-center justify-center gap-2 text-xs text-gray-400">
+              <Lock className="w-3.5 h-3.5 text-emerald-500" />
+              <span>Secure checkout &mdash; your data is safe with us</span>
+            </div>
+          </div>
+        )}
+
+        {/* ── Summary / Payment / UTR steps ── */}
+        {(step === 'summary' || step === 'payment' || step === 'utr') && order && safeProduct && (
           <div className="max-w-2xl mx-auto space-y-6">
-            {/* ── Step indicator ─────────────────────────────────── */}
+            {/* Step indicator */}
             <div className="flex items-center gap-2 text-xs font-semibold">
               {[
                 { key: 'summary', label: '1. Order Summary' },
@@ -253,12 +428,12 @@ export default function CheckoutPage() {
                       </span>
                     ) : s.label}
                   </span>
-                  {i < arr.length - 1 && <span className="text-gray-300">→</span>}
+                  {i < arr.length - 1 && <span className="text-gray-300">&rarr;</span>}
                 </div>
               ))}
             </div>
 
-            {/* ── Order Summary Card ──────────────────────────────── */}
+            {/* Order Summary Card */}
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
               <h2 className="font-bold text-navy mb-5 flex items-center gap-2">
                 <FileText className="w-5 h-5 text-teal-600" />
@@ -270,41 +445,44 @@ export default function CheckoutPage() {
                   <FileText className="w-7 h-7 text-white/80" />
                 </div>
                 <div className="flex-1 min-w-0">
-                   <p className="font-bold text-navy leading-snug mb-1">{safeProduct.title}</p>
+                  <p className="font-bold text-navy leading-snug mb-1">{safeProduct.title}</p>
                   <div className="flex items-center gap-3 text-xs text-gray-400">
-                    <span className="flex items-center gap-1">
-                      <FileText className="w-3 h-3" />
-                      {safeProduct.pages} pages
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Tag className="w-3 h-3" />
-                      {safeProduct.category?.name}
-                    </span>
+                    <span className="flex items-center gap-1"><FileText className="w-3 h-3" />{safeProduct.pages} pages</span>
+                    <span className="flex items-center gap-1"><Tag className="w-3 h-3" />{safeProduct.category?.name}</span>
                   </div>
                 </div>
                 <div className="text-right shrink-0">
-                  <p className="text-2xl font-extrabold text-navy">₹{safeProduct.price}</p>
+                  <p className="text-2xl font-extrabold text-navy">&#8377;{safeProduct.price}</p>
                   <p className="text-xs text-gray-400">one-time</p>
                 </div>
               </div>
 
-              {/* Inclusions */}
+              {/* Buyer info pill */}
+              <div className="flex items-center gap-2 bg-teal-50 border border-teal-100 rounded-xl px-4 py-3 mb-5">
+                <User className="w-4 h-4 text-teal-600 shrink-0" />
+                <div className="text-sm text-teal-800 min-w-0">
+                  <span className="font-semibold">{user ? (profile?.full_name || user.email) : guestInfo.name}</span>
+                  <span className="text-teal-600 ml-2 text-xs">
+                    {user ? (profile?.email || user.email) : guestInfo.email}
+                  </span>
+                </div>
+              </div>
+
               <ul className="space-y-2 mb-5">
                 {['Lifetime PDF access', 'Printable & mobile-friendly', 'Future updates included'].map((item) => (
                   <li key={item} className="flex items-center gap-2 text-sm text-gray-600">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                    {item}
+                    <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />{item}
                   </li>
                 ))}
               </ul>
 
               <div className="flex items-center justify-between border-t border-gray-100 pt-4">
                 <span className="font-bold text-navy">Total</span>
-                <span className="text-2xl font-extrabold text-navy">₹{order.amount}</span>
+                <span className="text-2xl font-extrabold text-navy">&#8377;{order.amount}</span>
               </div>
             </div>
 
-            {/* ── Payment Method ──────────────────────────────────── */}
+            {/* ── Payment Method ── */}
             {step === 'summary' && (
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
                 <h2 className="font-bold text-navy mb-4 flex items-center gap-2">
@@ -313,7 +491,7 @@ export default function CheckoutPage() {
                 </h2>
 
                 <div className="grid gap-3">
-                  {/* Razorpay option — instant */}
+                  {/* Razorpay */}
                   <label
                     onClick={() => { setPaymentMethod('razorpay'); setRazorpayError(''); }}
                     className={`flex items-start gap-4 p-4 border-2 rounded-xl cursor-pointer transition-all ${
@@ -338,12 +516,12 @@ export default function CheckoutPage() {
                         </span>
                       </div>
                       <p className="text-xs text-gray-500 mt-1">
-                        UPI (Google Pay, PhonePe, Paytm), Debit/Credit Cards & Net Banking. Notes unlock immediately after payment!
+                        UPI (Google Pay, PhonePe, Paytm), Debit/Credit Cards &amp; Net Banking. Notes unlock immediately after payment!
                       </p>
                     </div>
                   </label>
 
-                  {/* Manual UPI option */}
+                  {/* Manual UPI */}
                   <label
                     onClick={() => { setPaymentMethod('upi'); setRazorpayError(''); }}
                     className={`flex items-start gap-4 p-4 border-2 rounded-xl cursor-pointer transition-all ${
@@ -391,26 +569,17 @@ export default function CheckoutPage() {
                   className="btn-primary w-full mt-6"
                 >
                   {isProcessingRazorpay ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Opening Payment Gateway…
-                    </>
+                    <><Loader2 className="w-4 h-4 animate-spin" /> Opening Payment Gateway&hellip;</>
                   ) : paymentMethod === 'razorpay' ? (
-                    <>
-                      <Zap className="w-4 h-4" />
-                      Pay Online ₹{order.amount} (Instant Access)
-                    </>
+                    <><Zap className="w-4 h-4" /> Pay Online &#8377;{order.amount} (Instant Access)</>
                   ) : (
-                    <>
-                      <Smartphone className="w-4 h-4" />
-                      Proceed to UPI QR (₹{order.amount})
-                    </>
+                    <><Smartphone className="w-4 h-4" /> Proceed to UPI QR (&#8377;{order.amount})</>
                   )}
                 </button>
               </div>
             )}
 
-            {/* ── UPI Payment Box ─────────────────────────────────── */}
+            {/* ── UPI Payment Box + UTR Form ── */}
             {(step === 'payment' || step === 'utr') && (
               <>
                 <UpiPaymentBox
@@ -420,7 +589,6 @@ export default function CheckoutPage() {
                   orderNumber={order.order_number}
                 />
 
-                {/* UTR Form */}
                 <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
                   <h2 className="font-bold text-navy mb-2 flex items-center gap-2">
                     <Send className="w-5 h-5 text-teal-600" />
@@ -446,12 +614,11 @@ export default function CheckoutPage() {
                       />
                       {utrError && (
                         <p className="text-red-500 text-xs mt-1.5 flex items-center gap-1">
-                          <AlertCircle className="w-3.5 h-3.5" />
-                          {utrError}
+                          <AlertCircle className="w-3.5 h-3.5" />{utrError}
                         </p>
                       )}
                       <p className="text-gray-400 text-xs mt-1.5">
-                        Find UTR in your UPI app → Transaction History → last payment details
+                        Find UTR in your UPI app &rarr; Transaction History &rarr; last payment details
                       </p>
                     </div>
 
@@ -462,21 +629,15 @@ export default function CheckoutPage() {
                       className="btn-teal w-full"
                     >
                       {utrSubmitting ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          Submitting…
-                        </>
+                        <><Loader2 className="w-4 h-4 animate-spin" /> Submitting&hellip;</>
                       ) : (
-                        <>
-                          <Send className="w-4 h-4" />
-                          Submit for Verification
-                        </>
+                        <><Send className="w-4 h-4" /> Submit for Verification</>
                       )}
                     </button>
                   </form>
                 </div>
 
-                {/* ── Help / Support Box ── */}
+                {/* Help / Support Box */}
                 <div className="bg-gradient-to-r from-emerald-50 to-teal-50 rounded-2xl border border-emerald-200 p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                   <div className="flex items-start gap-3">
                     <div className="w-10 h-10 rounded-xl bg-emerald-500 text-white flex items-center justify-center shrink-0">

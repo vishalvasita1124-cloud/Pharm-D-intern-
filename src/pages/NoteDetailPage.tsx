@@ -12,7 +12,6 @@ import {
   Stethoscope,
   FlaskConical,
   Hourglass,
-  LogIn,
   AlertCircle,
   Eye,
 } from 'lucide-react';
@@ -57,7 +56,8 @@ function usePurchaseState(productId: string | undefined) {
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    if (!user || !productId) { setChecking(false); return; }
+    if (!productId) { setChecking(false); return; }
+    if (!user) { setChecking(false); return; } // guests always see Buy Now
     Promise.all([
       checkUserAccess(productId),
       getActiveOrderForProduct(productId),
@@ -179,15 +179,6 @@ export default function NoteDetailPage() {
                   >
                     <Clock className="w-4 h-4" />
                     Resume Order — Pay Now
-                  </Link>
-                ) : !user ? (
-                  <Link
-                    to={`/login?redirect=/checkout/${product.id}`}
-                    id={`buy-now-${product.slug}`}
-                    className="btn-primary w-full mb-3"
-                  >
-                    <LogIn className="w-4 h-4" />
-                    Sign In to Purchase
                   </Link>
                 ) : (
                   <Link

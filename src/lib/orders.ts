@@ -10,16 +10,42 @@ export async function createOrder(productId: string): Promise<{ data: Order | nu
   return { data: data as Order, error: null };
 }
 
-// ── UTR submission ────────────────────────────────────────────────────────────
-
-/** Submits the UPI UTR number for an order. */
-export async function submitUTR(orderId: string, utr: string): Promise<{ data: Order | null; error: string | null }> {
-  const { data, error } = await supabase.rpc('submit_utr', {
-    p_order_id: orderId,
-    p_utr: utr,
+/** Creates a guest order (no login needed). Also works for logged-in users. */
+export async function createGuestOrder(
+  productId: string,
+  email: string,
+  name: string,
+  mobile: string
+): Promise<{ data: Order | null; error: string | null }> {
+  const { data, error } = await supabase.rpc('create_guest_order', {
+    p_product_id: productId,
+    p_email: email,
+    p_name: name,
+    p_mobile: mobile,
   });
   if (error) return { data: null, error: error.message };
   return { data: data as Order, error: null };
+}
+
+// ── UTR submission ────────────────────────────────────────────────────────────
+
+/** Submits the UPI UTR number for an order (supports both logged-in and guest users). */
+export async function submitUTR(orderId: string, utr: string): Promise<{ data: Order | null; error: string | null }> {
+  // Try submit_guest_utr first (works for all orders)
+  const { data, error } = await supabase.rpc('submit_guest_utr', {
+    p_order_id: orderId,
+    p_utr: utr,
+  });
+
+  if (!error) return { data: data as Order, error: null };
+
+  // Fallback to standard submit_utr
+  const fallback = await supabase.rpc('submit_utr', {
+    p_order_id: orderId,
+    p_utr: utr,
+  });
+  if (fallback.error) return { data: null, error: fallback.error.message };
+  return { data: fallback.data as Order, error: null };
 }
 
 // ── Fetching orders ───────────────────────────────────────────────────────────
@@ -35,8 +61,18 @@ export async function getUserOrders(): Promise<{ data: Order[]; error: string | 
   return { data: (data as Order[]) ?? [], error: null };
 }
 
-/** Fetches a single order by ID (must belong to current user). */
+/** Fetches a single order by ID (supports both logged-in and guest orders). */
 export async function getOrderById(orderId: string): Promise<{ data: Order | null; error: string | null }> {
+  // Try get_guest_order RPC (bypasses RLS safely by order UUID)
+  const { data: guestData, error: guestErr } = await supabase.rpc('get_guest_order', {
+    p_order_id: orderId,
+  });
+
+  if (!guestErr && guestData) {
+    return { data: guestData as Order, error: null };
+  }
+
+  // Fallback direct query
   const { data, error } = await supabase
     .from('orders')
     .select('*')

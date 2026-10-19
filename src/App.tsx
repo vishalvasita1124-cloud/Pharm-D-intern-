@@ -56,24 +56,16 @@ function App() {
             }
           />
 
-          {/* Protected: Checkout */}
+          {/* Public: Checkout — guests can buy without signing in */}
           <Route
             path="/checkout/:productId"
-            element={
-              <ProtectedRoute>
-                <CheckoutPage />
-              </ProtectedRoute>
-            }
+            element={<CheckoutPage />}
           />
 
-          {/* Protected: Order status */}
+          {/* Public: Order status — guests can track their order by URL */}
           <Route
             path="/orders/:orderId"
-            element={
-              <ProtectedRoute>
-                <OrderStatusPage />
-              </ProtectedRoute>
-            }
+            element={<OrderStatusPage />}
           />
 
           {/* Protected: My orders list */}
