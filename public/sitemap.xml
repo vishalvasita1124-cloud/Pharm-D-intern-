@@ -1,27 +1,27 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://pharm-d-intern.vishalvasita1124.workers.dev/</loc>
+    <loc>https://pharm-d-intern.pages.dev/</loc>
     <priority>1.0</priority>
     <changefreq>weekly</changefreq>
   </url>
   <url>
-    <loc>https://pharm-d-intern.vishalvasita1124.workers.dev/notes</loc>
+    <loc>https://pharm-d-intern.pages.dev/notes</loc>
     <priority>0.9</priority>
     <changefreq>daily</changefreq>
   </url>
   <url>
-    <loc>https://pharm-d-intern.vishalvasita1124.workers.dev/resources</loc>
+    <loc>https://pharm-d-intern.pages.dev/resources</loc>
     <priority>0.8</priority>
     <changefreq>weekly</changefreq>
   </url>
   <url>
-    <loc>https://pharm-d-intern.vishalvasita1124.workers.dev/about</loc>
+    <loc>https://pharm-d-intern.pages.dev/about</loc>
     <priority>0.6</priority>
     <changefreq>monthly</changefreq>
   </url>
   <url>
-    <loc>https://pharm-d-intern.vishalvasita1124.workers.dev/faq</loc>
+    <loc>https://pharm-d-intern.pages.dev/faq</loc>
     <priority>0.6</priority>
     <changefreq>monthly</changefreq>
   </url>
