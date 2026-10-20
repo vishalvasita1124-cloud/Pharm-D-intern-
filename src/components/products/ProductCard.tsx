@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { FileText, ArrowRight, BookOpen, Stethoscope, FlaskConical, Microscope } from 'lucide-react';
+import { FileText, ArrowRight, BookOpen, Stethoscope, FlaskConical, Microscope, Eye } from 'lucide-react';
 import { clsx } from 'clsx';
 import { Badge } from '@/components/ui/Badge';
 import type { Product } from '@/types';
@@ -53,7 +53,7 @@ export function ProductCard({ product, className }: ProductCardProps) {
   return (
     <div
       className={clsx(
-        'group bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm card-hover',
+        'group bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm card-hover flex flex-col justify-between',
         className
       )}
     >
@@ -72,47 +72,83 @@ export function ProductCard({ product, className }: ProductCardProps) {
         <div className="absolute top-3 right-3 bg-white/95 backdrop-blur-sm rounded-xl px-3 py-1.5 shadow-md">
           <span className="text-medical-800 font-bold text-sm">₹{product.price}</span>
         </div>
+        {/* Free Preview badge if available */}
+        {product.preview_url && (
+          <div className="absolute bottom-3 left-3 bg-emerald-950/85 backdrop-blur-sm text-emerald-200 border border-emerald-500/40 rounded-lg px-2.5 py-1 text-xs font-semibold flex items-center gap-1.5 shadow-md">
+            <Eye className="w-3.5 h-3.5 text-emerald-400" />
+            <span>Free Sample</span>
+          </div>
+        )}
       </div>
 
       {/* Content */}
-      <div className="p-5">
-        {/* Category badge */}
-        <Badge variant="teal" className="mb-2.5">
-          {categoryName}
-        </Badge>
+      <div className="p-5 flex flex-col flex-1 justify-between">
+        <div>
+          {/* Category badge */}
+          <Badge variant="teal" className="mb-2.5">
+            {categoryName}
+          </Badge>
 
-        {/* Title */}
-        <h3 className="font-bold text-navy text-base leading-snug mb-2 line-clamp-2 group-hover:text-medical-700 transition-colors">
-          {product.title}
-        </h3>
+          {/* Title */}
+          <h3 className="font-bold text-navy text-base leading-snug mb-2 line-clamp-2 group-hover:text-medical-700 transition-colors">
+            {product.title}
+          </h3>
 
-        {/* Short desc */}
-        <p className="text-gray-500 text-sm leading-relaxed mb-4 line-clamp-2">
-          {product.short_description}
-        </p>
-
-        {/* Meta */}
-        <div className="flex items-center gap-3 mb-4">
-          <div className="flex items-center gap-1.5 text-gray-400 text-xs">
-            <FileText className="w-3.5 h-3.5" />
-            <span>{product.pages} pages</span>
-          </div>
-          <div className="w-1 h-1 rounded-full bg-gray-300" />
-          <div className="flex items-center gap-1.5 text-gray-400 text-xs">
-            <Microscope className="w-3.5 h-3.5" />
-            <span>{product.topics.length} topics</span>
-          </div>
+          {/* Short desc */}
+          <p className="text-gray-500 text-sm leading-relaxed mb-4 line-clamp-2">
+            {product.short_description}
+          </p>
         </div>
 
-        {/* CTA */}
-        <Link
-          to={`/notes/${product.slug}`}
-          id={`product-card-${product.slug}`}
-          className="flex items-center justify-between w-full px-4 py-2.5 rounded-xl bg-medical-50 text-medical-700 font-semibold text-sm hover:bg-medical-700 hover:text-white transition-all duration-200 group/btn"
-        >
-          <span>View Details</span>
-          <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
-        </Link>
+        <div>
+          {/* Meta */}
+          <div className="flex items-center gap-3 mb-4">
+            <div className="flex items-center gap-1.5 text-gray-400 text-xs">
+              <FileText className="w-3.5 h-3.5" />
+              <span>{product.pages} pages</span>
+            </div>
+            <div className="w-1 h-1 rounded-full bg-gray-300" />
+            <div className="flex items-center gap-1.5 text-gray-400 text-xs">
+              <Microscope className="w-3.5 h-3.5" />
+              <span>{product.topics.length} topics</span>
+            </div>
+          </div>
+
+          {/* CTA Buttons */}
+          <div className="flex items-center gap-2">
+            {product.preview_url ? (
+              <>
+                <a
+                  href={product.preview_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl border border-teal-600 bg-teal-50 text-teal-700 font-semibold text-xs hover:bg-teal-100 transition-all shrink-0"
+                  title="Open Free Preview PDF"
+                >
+                  <Eye className="w-3.5 h-3.5 text-teal-600" />
+                  <span>Preview</span>
+                </a>
+                <Link
+                  to={`/notes/${product.slug}`}
+                  id={`product-card-${product.slug}`}
+                  className="flex-1 flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-medical-50 text-medical-700 font-semibold text-xs hover:bg-medical-700 hover:text-white transition-all duration-200 group/btn"
+                >
+                  <span>Details</span>
+                  <ArrowRight className="w-3.5 h-3.5 group-hover/btn:translate-x-1 transition-transform" />
+                </Link>
+              </>
+            ) : (
+              <Link
+                to={`/notes/${product.slug}`}
+                id={`product-card-${product.slug}`}
+                className="flex items-center justify-between w-full px-4 py-2.5 rounded-xl bg-medical-50 text-medical-700 font-semibold text-sm hover:bg-medical-700 hover:text-white transition-all duration-200 group/btn"
+              >
+                <span>View Details</span>
+                <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
+              </Link>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

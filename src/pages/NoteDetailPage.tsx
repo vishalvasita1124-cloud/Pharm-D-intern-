@@ -191,6 +191,20 @@ export default function NoteDetailPage() {
                   </Link>
                 )}
 
+                {/* Free Preview button if uploaded */}
+                {product.preview_url && (
+                  <a
+                    href={product.preview_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    id={`free-preview-${product.slug}`}
+                    className="flex items-center justify-center gap-2 w-full py-2.5 px-4 rounded-xl border-2 border-teal-600 bg-teal-50 hover:bg-teal-100 text-teal-800 text-sm font-bold transition-all mb-3 shadow-sm"
+                  >
+                    <Eye className="w-4 h-4 text-teal-600" />
+                    Read Free PDF Preview
+                  </a>
+                )}
+
                 <div className="flex gap-2 mt-3">
                   <button
                     id={`share-${product.slug}`}
@@ -226,7 +240,14 @@ export default function NoteDetailPage() {
 
             {/* Title + badge */}
             <div>
-              <Badge variant="teal" className="mb-3">{categoryName}</Badge>
+              <div className="flex flex-wrap items-center gap-2 mb-3">
+                <Badge variant="teal">{categoryName}</Badge>
+                {product.preview_url && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    <CheckCircle2 className="w-3.5 h-3.5" /> Free Sample Available
+                  </span>
+                )}
+              </div>
               <h1 className="text-3xl md:text-4xl font-extrabold text-navy leading-snug mb-4">
                 {product.title}
               </h1>
@@ -269,33 +290,69 @@ export default function NoteDetailPage() {
             )}
 
             {/* Preview/sample section */}
-            <div className="bg-gradient-to-br from-medical-50 to-teal-50 rounded-2xl border border-medical-100 p-7">
-              <h2 className="text-xl font-bold text-navy mb-3">Sample Preview</h2>
-              <p className="text-gray-600 text-sm mb-5">
-                Get a feel for the note quality and layout before purchasing. A preview excerpt is shown below.
-              </p>
-              <div className="bg-white rounded-xl border border-gray-200 p-5">
-                <div className="border-l-4 border-teal-500 pl-4 mb-4">
-                  <h3 className="font-bold text-navy text-base mb-1">
-                    Sample Excerpt — {product.topics[0] ?? product.title}
-                  </h3>
-                  <p className="text-gray-500 text-xs">
-                    {product.pages ? `Preview page 1 of ${product.pages}` : 'Preview excerpt'}
-                  </p>
+            {product.preview_url ? (
+              <div className="bg-gradient-to-br from-medical-50 via-teal-50 to-white rounded-2xl border border-teal-200 p-6 md:p-8 shadow-sm">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
+                  <div>
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold uppercase tracking-wider mb-2">
+                      <Eye className="w-3.5 h-3.5 text-emerald-600" /> Free PDF Sample
+                    </span>
+                    <h2 className="text-xl md:text-2xl font-bold text-navy">Sample PDF Preview</h2>
+                    <p className="text-gray-600 text-sm mt-1">
+                      Read through the free sample pages below before deciding to purchase.
+                    </p>
+                  </div>
+                  <a
+                    href={product.preview_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-semibold text-sm transition-all shadow-sm shrink-0"
+                  >
+                    <BookOpen className="w-4 h-4" />
+                    Open Full PDF in New Tab
+                  </a>
                 </div>
-                <div className="space-y-2">
-                  {[1, 2, 3].map((i) => (
-                    <div key={i} className="h-3 rounded bg-gray-100" style={{ width: `${90 - i * 10}%` }} />
-                  ))}
-                  <div className="h-3 rounded bg-gray-100 w-3/4" />
-                  <div className="h-3 rounded bg-gray-100 w-5/6" />
+
+                <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-inner">
+                  <iframe
+                    src={`${product.preview_url}#toolbar=0`}
+                    className="w-full h-[600px] bg-gray-50 border-0"
+                    title={`Free Sample Preview of ${product.title}`}
+                  />
                 </div>
-                <div className="mt-4 flex items-center gap-2 text-gray-400 text-xs">
-                  <AlertCircle className="w-3.5 h-3.5" />
-                  Full content available after purchase
+                <p className="text-xs text-gray-500 mt-3 text-center">
+                  Preview excerpt provided for review. Full complete notes with all topics are unlocked upon purchase.
+                </p>
+              </div>
+            ) : (
+              <div className="bg-gradient-to-br from-medical-50 to-teal-50 rounded-2xl border border-medical-100 p-7">
+                <h2 className="text-xl font-bold text-navy mb-3">Sample Preview</h2>
+                <p className="text-gray-600 text-sm mb-5">
+                  Get a feel for the note quality and layout before purchasing. A preview excerpt is shown below.
+                </p>
+                <div className="bg-white rounded-xl border border-gray-200 p-5">
+                  <div className="border-l-4 border-teal-500 pl-4 mb-4">
+                    <h3 className="font-bold text-navy text-base mb-1">
+                      Sample Excerpt — {product.topics[0] ?? product.title}
+                    </h3>
+                    <p className="text-gray-500 text-xs">
+                      {product.pages ? `Preview page 1 of ${product.pages}` : 'Preview excerpt'}
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="h-3 rounded bg-gray-100" style={{ width: `${90 - i * 10}%` }} />
+                    ))}
+                    <div className="h-3 rounded bg-gray-100 w-3/4" />
+                    <div className="h-3 rounded bg-gray-100 w-5/6" />
+                  </div>
+                  <div className="mt-4 flex items-center gap-2 text-gray-400 text-xs">
+                    <AlertCircle className="w-3.5 h-3.5" />
+                    Full content available after purchase
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
             {/* What you get */}
             <div className="bg-white rounded-2xl border border-gray-100 p-7">
