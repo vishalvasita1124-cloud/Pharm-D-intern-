@@ -120,14 +120,34 @@ export function OrderDetailModal({ order, onClose, onApprove, onReject }: OrderD
 
           {/* Rejection reason input */}
           {rejecting && (
-            <div className="space-y-2">
+            <div className="space-y-2 pt-2 border-t border-gray-100">
               <label className="block text-sm font-medium text-navy">
                 Rejection Reason <span className="text-red-500">*</span>
               </label>
+
+              {/* Quick Preset Buttons */}
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {[
+                  'Payment not received in account',
+                  'Invalid UTR / transaction ID',
+                  'Incorrect amount paid',
+                  'Duplicate order',
+                ].map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => setRejectReason(preset)}
+                    className="text-[11px] bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 px-2 py-1 rounded-md transition-colors"
+                  >
+                    {preset}
+                  </button>
+                ))}
+              </div>
+
               <textarea
                 value={rejectReason}
                 onChange={(e) => setRejectReason(e.target.value)}
-                placeholder="e.g. UTR number does not match our records"
+                placeholder="Select a reason above or type a custom reason…"
                 rows={3}
                 className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400/30 focus:border-red-400 resize-none"
               />
@@ -136,7 +156,7 @@ export function OrderDetailModal({ order, onClose, onApprove, onReject }: OrderD
         </div>
 
         {/* Footer actions */}
-        {order.status === 'pending_verification' && (
+        {order.status !== 'rejected' && order.status !== 'cancelled' && (
           <div className="px-6 py-4 border-t border-gray-100 flex flex-wrap gap-3 justify-end">
             {rejecting ? (
               <>
@@ -151,7 +171,7 @@ export function OrderDetailModal({ order, onClose, onApprove, onReject }: OrderD
                   id={`modal-confirm-reject-${order.id}`}
                   onClick={handleReject}
                   disabled={loading}
-                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-600 text-white text-sm font-semibold hover:bg-red-700 disabled:opacity-60 transition-all"
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-600 text-white text-sm font-semibold hover:bg-red-700 disabled:opacity-60 transition-all shadow-xs"
                 >
                   {loading ? <Spinner size="sm" /> : <XCircle className="w-4 h-4" />}
                   Confirm Reject
@@ -162,20 +182,22 @@ export function OrderDetailModal({ order, onClose, onApprove, onReject }: OrderD
                 <button
                   id={`modal-reject-btn-${order.id}`}
                   onClick={() => setRejecting(true)}
-                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-red-200 text-red-600 text-sm font-semibold hover:bg-red-50 transition-all"
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-red-200 bg-red-50 text-red-600 text-sm font-semibold hover:bg-red-100 transition-all shadow-xs"
                 >
                   <XCircle className="w-4 h-4" />
-                  Reject
+                  Reject Order
                 </button>
-                <button
-                  id={`modal-approve-btn-${order.id}`}
-                  onClick={handleApprove}
-                  disabled={loading}
-                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 disabled:opacity-60 transition-all"
-                >
-                  {loading ? <Spinner size="sm" /> : <CheckCircle2 className="w-4 h-4" />}
-                  Approve Payment
-                </button>
+                {order.status !== 'approved' && (
+                  <button
+                    id={`modal-approve-btn-${order.id}`}
+                    onClick={handleApprove}
+                    disabled={loading}
+                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 disabled:opacity-60 transition-all shadow-xs"
+                  >
+                    {loading ? <Spinner size="sm" /> : <CheckCircle2 className="w-4 h-4" />}
+                    Approve Payment
+                  </button>
+                )}
               </>
             )}
           </div>

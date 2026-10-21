@@ -148,38 +148,46 @@ export function PaymentsTable({
 
                   {/* Actions */}
                   <td className="px-4 py-3">
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-2">
                       <button
                         id={`view-order-${order.id}`}
                         onClick={() => onViewDetail(order)}
                         title="View details"
-                        className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors"
+                        className="px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-100 transition-colors flex items-center gap-1 text-xs font-medium"
                       >
                         <Eye className="w-3.5 h-3.5" />
+                        <span>View</span>
                       </button>
 
-                      {order.status === 'pending_verification' && (
+                      {order.status !== 'rejected' && order.status !== 'cancelled' && (
                         <>
                           <button
                             id={`approve-order-${order.id}`}
                             onClick={() => handleApprove(order.id)}
-                            disabled={approvingId === order.id}
-                            title="Approve"
-                            className="p-1.5 rounded-lg border border-emerald-200 text-emerald-600 hover:bg-emerald-50 disabled:opacity-50 transition-colors"
+                            disabled={approvingId === order.id || order.status === 'approved'}
+                            title="Approve order"
+                            className={`px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-colors flex items-center gap-1 ${
+                              order.status === 'approved'
+                                ? 'border-gray-200 text-gray-400 bg-gray-50 cursor-default'
+                                : 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 disabled:opacity-50'
+                            }`}
                           >
                             {approvingId === order.id ? (
                               <Spinner size="sm" />
                             ) : (
-                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
                             )}
+                            <span>{order.status === 'approved' ? 'Approved' : 'Approve'}</span>
                           </button>
+
                           <button
                             id={`reject-order-${order.id}`}
                             onClick={() => onReject(order.id)}
-                            title="Reject"
-                            className="p-1.5 rounded-lg border border-red-200 text-red-500 hover:bg-red-50 transition-colors"
+                            title="Reject order"
+                            className="px-2.5 py-1.5 rounded-lg border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 text-xs font-medium transition-colors flex items-center gap-1"
                           >
-                            <XCircle className="w-3.5 h-3.5" />
+                            <XCircle className="w-3.5 h-3.5 text-red-600" />
+                            <span>Reject</span>
                           </button>
                         </>
                       )}
