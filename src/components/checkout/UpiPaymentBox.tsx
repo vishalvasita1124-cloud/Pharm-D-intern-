@@ -46,9 +46,13 @@ export function UpiPaymentBox({
     setActiveUpiId(cleanConfigId);
   }, [cleanConfigId]);
 
+  const displayName = upiName && upiName !== 'Pharm D Intern Notes' ? upiName : 'Vishal Vasita';
+  const cleanMobile = upiMobile || '9512184197';
+
   const upiLink = buildUpiLink(activeUpiId);
-  const phonePeNumberLink = `phonepe://pay?pa=${upiMobile}@ybl&cu=INR`;
-  const gpayLink = `upi://pay?pa=${activeUpiId}&cu=INR`;
+  const phonePeNumberLink = `phonepe://pay?pa=${cleanMobile}@ybl&cu=INR`;
+  const gpayLink = `gpay://upi/pay?pa=${encodeURIComponent(activeUpiId)}&cu=INR`;
+  const paytmNumberLink = `paytmmp://pay?pa=${cleanMobile}@paytm&cu=INR`;
 
   useEffect(() => {
     if (activeTab !== 'qr' || qrImageUrl || !canvasRef.current) return;
@@ -61,7 +65,7 @@ export function UpiPaymentBox({
 
   const handleCopyMobile = async () => {
     try {
-      await navigator.clipboard.writeText(upiMobile);
+      await navigator.clipboard.writeText(cleanMobile);
       setMobileCopied(true);
       setTimeout(() => setMobileCopied(false), 2500);
     } catch {
@@ -71,12 +75,11 @@ export function UpiPaymentBox({
 
   /** Downloads a vCard (.vcf) contact file so mobile users can save Vishal Vasita in 1 tap */
   const handleSaveContact = () => {
-    const displayName = upiName || 'Vishal Vasita';
     const vcard = `BEGIN:VCARD
 VERSION:3.0
 FN:${displayName}
 N:${displayName};;;;
-TEL;TYPE=CELL:${upiMobile}
+TEL;TYPE=CELL:${cleanMobile}
 NOTE:Pharm D Intern Notes UPI Payment
 END:VCARD`;
     const blob = new Blob([vcard], { type: 'text/vcard;charset=utf-8;' });
@@ -106,7 +109,7 @@ END:VCARD`;
           </div>
         </div>
         <span className="text-[11px] bg-white border border-teal-200 text-teal-800 font-semibold px-3 py-1 rounded-full shadow-2xs">
-          Payee: {upiName || 'Vishal Vasita'}
+          Payee: {displayName}
         </span>
       </div>
 
@@ -159,9 +162,9 @@ END:VCARD`;
 
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 bg-gray-50/80 rounded-xl border border-gray-100">
               <div>
-                <p className="text-2xl font-black text-navy font-mono tracking-wider">{upiMobile}</p>
+                <p className="text-2xl font-black text-navy font-mono tracking-wider">{cleanMobile}</p>
                 <p className="text-xs text-gray-600 mt-0.5">
-                  Name on PhonePe / GPay: <strong className="text-navy">{upiName || 'Vishal Vasita'}</strong>
+                  Name on PhonePe / GPay: <strong className="text-navy">{displayName}</strong>
                 </p>
               </div>
 
@@ -182,7 +185,7 @@ END:VCARD`;
                 <button
                   type="button"
                   onClick={handleSaveContact}
-                  title="Save Vishal Vasita to your phone contacts so you can send via PhonePe/GPay Contact"
+                  title={`Save ${displayName} to your phone contacts so you can send via PhonePe/GPay Contact`}
                   className="flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-semibold bg-gray-200 hover:bg-gray-300 text-gray-800 active:scale-95 transition-all"
                 >
                   {vcardDownloaded ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Download className="w-3.5 h-3.5" />}
@@ -195,31 +198,39 @@ END:VCARD`;
             <div className="mt-3.5 pt-3 border-t border-gray-100 text-xs text-gray-600 space-y-1.5">
               <p className="font-semibold text-navy">How to pay via mobile number:</p>
               <ol className="list-decimal pl-4 space-y-1 text-gray-600">
-                <li>Copy <strong>{upiMobile}</strong> (or tap &ldquo;Add to Contacts&rdquo;)</li>
+                <li>Copy <strong>{cleanMobile}</strong> (or tap &ldquo;Add to Contacts&rdquo;)</li>
                 <li>Open <strong>PhonePe, Google Pay, or Paytm</strong></li>
-                <li>Tap <strong>&ldquo;To Mobile Number&rdquo;</strong> &rarr; enter <strong>{upiMobile}</strong></li>
-                <li>Verify name shows <strong>{upiName || 'Vishal Vasita'}</strong> &rarr; enter <strong>₹{amount}</strong> &rarr; Pay</li>
+                <li>Tap <strong>&ldquo;To Mobile Number&rdquo;</strong> &rarr; enter <strong>{cleanMobile}</strong></li>
+                <li>Verify name shows <strong>{displayName}</strong> &rarr; enter <strong>₹{amount}</strong> &rarr; Pay</li>
               </ol>
             </div>
           </div>
 
-          {/* Quick open buttons for mobile apps */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          {/* Quick open buttons for mobile apps: PhonePe, Google Pay, Paytm */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             <a
               href={phonePeNumberLink}
               id="open-phonepe-number-btn"
-              className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-purple-700 hover:bg-purple-800 text-white text-xs font-semibold transition-all shadow-xs"
+              className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-[#5f259f] hover:bg-[#4f1e84] text-white text-xs font-semibold transition-all shadow-xs"
             >
               <ExternalLink className="w-3.5 h-3.5" />
-              Open PhonePe (Pay to Number)
+              Open PhonePe
             </a>
             <a
               href={gpayLink}
               id="open-gpay-btn"
-              className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-teal-700 hover:bg-teal-800 text-white text-xs font-semibold transition-all shadow-xs"
+              className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-[#1a73e8] hover:bg-[#1557b0] text-white text-xs font-semibold transition-all shadow-xs"
             >
               <ExternalLink className="w-3.5 h-3.5" />
-              Open GPay / Any UPI App
+              Open Google Pay
+            </a>
+            <a
+              href={paytmNumberLink}
+              id="open-paytm-btn"
+              className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-[#002e6e] hover:bg-[#002252] text-white text-xs font-semibold transition-all shadow-xs"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              Open Paytm
             </a>
           </div>
         </div>
