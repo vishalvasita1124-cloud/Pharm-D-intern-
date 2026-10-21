@@ -11,23 +11,27 @@ interface UpiPaymentBoxProps {
   note?: string;
 }
 
-/** Builds a UPI deep-link that opens any UPI app on mobile */
-function buildUpiLink(upiId: string, name: string, amount: number, tn: string) {
-  const params = new URLSearchParams({
-    pa: upiId,
-    pn: name,
-    am: amount.toFixed(2),
-    cu: 'INR',
-    tn,
-  });
-  return `upi://pay?${params.toString()}`;
+/**
+ * Builds a static UPI deep-link (no pre-filled amount).
+ * This ensures the link works with any personal UPI ID on any bank
+ * without triggering "bank limit exceeded" errors caused by NPCI P2P
+ * dynamic collection restrictions on personal savings accounts.
+ */
+function buildUpiLink(upiId: string, name: string, orderNumber: string) {
+  const parts = [
+    `pa=${encodeURIComponent(upiId)}`,
+    `pn=${encodeURIComponent(name)}`,
+    `cu=INR`,
+    `tn=${encodeURIComponent(`Order ${orderNumber}`)}`,
+  ];
+  return `upi://pay?${parts.join('&')}`;
 }
 
 export function UpiPaymentBox({ upiId, upiName, amount, orderNumber, note }: UpiPaymentBoxProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [qrError, setQrError] = useState(false);
 
-  const upiLink = buildUpiLink(upiId, upiName, amount, `Payment for ${orderNumber}`);
+  const upiLink = buildUpiLink(upiId, upiName, orderNumber);
 
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -46,13 +50,13 @@ export function UpiPaymentBox({ upiId, upiName, amount, orderNumber, note }: Upi
         </div>
         <div>
           <h3 className="font-bold text-navy text-sm">Pay via UPI</h3>
-          <p className="text-gray-500 text-xs">Scan or copy the UPI ID below</p>
+          <p className="text-gray-500 text-xs">Scan QR or tap the button below to open your UPI app</p>
         </div>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-6 items-center">
         {/* QR Code */}
-        <div className="flex-shrink-0">
+        <div className="flex-shrink-0 text-center">
           {qrError ? (
             <div className="w-[200px] h-[200px] rounded-xl border-2 border-dashed border-gray-300 flex items-center justify-center bg-white">
               <p className="text-gray-400 text-xs text-center px-4">QR unavailable — use UPI ID below</p>
@@ -62,20 +66,21 @@ export function UpiPaymentBox({ upiId, upiName, amount, orderNumber, note }: Upi
               <canvas ref={canvasRef} className="block rounded" />
             </div>
           )}
+          <p className="text-[11px] text-gray-500 mt-1.5">Scan with any UPI app</p>
         </div>
 
         {/* Payment details */}
-        <div className="flex-1 w-full space-y-4">
-          {/* Amount */}
-          <div className="bg-white rounded-xl border border-gray-100 p-4 text-center">
-            <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">Amount to Pay</p>
-            <p className="text-3xl font-extrabold text-navy">₹{amount}</p>
+        <div className="flex-1 w-full space-y-3">
+          {/* Amount callout — prominent, user enters this in UPI app */}
+          <div className="bg-white rounded-xl border-2 border-teal-300 p-4 text-center">
+            <p className="text-xs text-gray-400 uppercase tracking-wide mb-0.5">Enter this amount in your UPI app</p>
+            <p className="text-4xl font-extrabold text-teal-700">₹{amount}</p>
             <p className="text-xs text-gray-400 mt-0.5">Indian Rupees (INR)</p>
           </div>
 
           {/* UPI ID */}
           <div className="bg-white rounded-xl border border-gray-100 p-4">
-            <p className="text-xs text-gray-400 uppercase tracking-wide mb-2">UPI ID</p>
+            <p className="text-xs text-gray-400 uppercase tracking-wide mb-2">Pay to UPI ID</p>
             <div className="flex items-center justify-between gap-2">
               <code className="text-navy font-bold text-sm break-all">{upiId}</code>
               <CopyButton text={upiId} label="Copy UPI ID" />
@@ -89,16 +94,16 @@ export function UpiPaymentBox({ upiId, upiName, amount, orderNumber, note }: Upi
             className="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-xl bg-teal-600 hover:bg-teal-700 active:scale-[0.98] text-white font-semibold text-sm transition-all shadow-sm"
           >
             <ExternalLink className="w-4 h-4" />
-            Open UPI App to Pay ₹{amount}
+            Open UPI App &rarr; Enter ₹{amount}
           </a>
 
           {/* Order number reminder */}
           <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl p-3">
             <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
             <p className="text-amber-700 text-xs leading-snug">
-              {note ?? `Please add your order number `}
+              {note ?? 'Add your order number '}
               <strong>{orderNumber}</strong>
-              {` in the payment remarks / note field.`}
+              {' in the payment remarks / note field when paying.'}
             </p>
           </div>
         </div>

@@ -51,10 +51,10 @@ export default function OrderStatusPage() {
     e.preventDefault();
     if (!order) return;
     const trimmed = utr.trim();
-    if (!trimmed) { setUtrError('Please enter your UTR number'); return; }
+    // UTR is optional — submit with PENDING if not provided
     setUtrSubmitting(true);
     setUtrError('');
-    const { error } = await submitUTR(order.id, trimmed);
+    const { error } = await submitUTR(order.id, trimmed || 'PENDING');
     if (error) { setUtrError(error); setUtrSubmitting(false); return; }
     setResubmitMode(false);
     await load();
@@ -178,16 +178,19 @@ export default function OrderStatusPage() {
               />
               {/* UTR form */}
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-                <h3 className="font-bold text-navy mb-4 flex items-center gap-2">
+                <h3 className="font-bold text-navy mb-2 flex items-center gap-2">
                   <Send className="w-5 h-5 text-teal-600" />
-                  Submit UTR Number
+                  Confirm Payment Sent
                 </h3>
+                <p className="text-gray-500 text-sm mb-4">
+                  Once you have paid <strong>&#8377;{order.amount}</strong>, tap below to notify us. UTR number is optional.
+                </p>
                 <form onSubmit={handleResubmitUTR} className="space-y-4">
                   <input
                     type="text"
                     value={utr}
                     onChange={(e) => { setUtr(e.target.value); setUtrError(''); }}
-                    placeholder="Enter UTR / transaction reference"
+                    placeholder="UTR / transaction reference (optional)"
                     className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-medical-500/30 focus:border-medical-400"
                   />
                   {utrError && (
@@ -195,8 +198,8 @@ export default function OrderStatusPage() {
                       <AlertCircle className="w-3.5 h-3.5" />{utrError}
                     </p>
                   )}
-                  <button type="submit" disabled={utrSubmitting || !utr.trim()} className="btn-teal w-full">
-                    {utrSubmitting ? <><Loader2 className="w-4 h-4 animate-spin" />Submitting…</> : <><Send className="w-4 h-4" />Submit for Verification</>}
+                  <button type="submit" disabled={utrSubmitting} className="btn-teal w-full">
+                    {utrSubmitting ? <><Loader2 className="w-4 h-4 animate-spin" />Submitting&hellip;</> : <><Send className="w-4 h-4" />I&apos;ve Paid &mdash; Notify Admin</>}
                   </button>
                 </form>
               </div>

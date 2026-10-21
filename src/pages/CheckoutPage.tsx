@@ -206,12 +206,11 @@ export default function CheckoutPage() {
     if (!order) return;
 
     const trimmed = utr.trim();
-    if (!trimmed) { setUtrError('Please enter your UTR number'); return; }
-
+    // UTR is optional — submit with empty string if not provided
     setUtrSubmitting(true);
     setUtrError('');
 
-    const { error } = await submitUTR(order.id, trimmed);
+    const { error } = await submitUTR(order.id, trimmed || 'PENDING');
     if (error) {
       setUtrError(error);
       setUtrSubmitting(false);
@@ -592,23 +591,23 @@ export default function CheckoutPage() {
                 <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
                   <h2 className="font-bold text-navy mb-2 flex items-center gap-2">
                     <Send className="w-5 h-5 text-teal-600" />
-                    Submit Payment Reference
+                    Confirm Payment Sent
                   </h2>
                   <p className="text-gray-500 text-sm mb-5">
-                    After completing the payment, enter the UTR / transaction reference number from your UPI app.
+                    Once you have completed the payment of <strong>₹{order?.amount}</strong>, tap the button below to notify us. Optionally add your UTR / transaction reference to help us verify faster.
                   </p>
 
                   <form onSubmit={handleUtrSubmit} className="space-y-4">
                     <div>
                       <label htmlFor="utr-input" className="block text-sm font-medium text-navy mb-1.5">
-                        UTR Number <span className="text-red-500">*</span>
+                        UTR Number <span className="text-gray-400 font-normal text-xs">(optional)</span>
                       </label>
                       <input
                         id="utr-input"
                         type="text"
                         value={utr}
                         onChange={(e) => { setUtr(e.target.value); setUtrError(''); }}
-                        placeholder="e.g. 123456789012"
+                        placeholder="e.g. 123456789012 (leave blank if unsure)"
                         className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-medical-500/30 focus:border-medical-400"
                         autoComplete="off"
                       />
@@ -625,13 +624,13 @@ export default function CheckoutPage() {
                     <button
                       id="submit-utr-btn"
                       type="submit"
-                      disabled={utrSubmitting || !utr.trim()}
+                      disabled={utrSubmitting}
                       className="btn-teal w-full"
                     >
                       {utrSubmitting ? (
                         <><Loader2 className="w-4 h-4 animate-spin" /> Submitting&hellip;</>
                       ) : (
-                        <><Send className="w-4 h-4" /> Submit for Verification</>
+                        <><Send className="w-4 h-4" /> I&apos;ve Paid &mdash; Notify Admin</>
                       )}
                     </button>
                   </form>
