@@ -422,9 +422,11 @@ export default function AdminPage() {
                 </div>
 
                 {[
-                  { key: 'upi_id', label: 'UPI ID', placeholder: 'e.g. yourname@upi', hint: 'The UPI ID customers will pay to' },
-                  { key: 'upi_name', label: 'UPI Display Name', placeholder: 'e.g. Pharm D Intern Notes', hint: 'Name shown in UPI apps' },
-                  { key: 'upi_note', label: 'Payment Instruction', placeholder: 'e.g. Add order number in remarks', hint: 'Shown below the QR code' },
+                  { key: 'upi_id', label: 'Personal UPI ID', placeholder: 'e.g. vasita.vishal@axl', hint: 'Your personal PhonePe, Google Pay, or Paytm UPI ID' },
+                  { key: 'upi_mobile', label: 'PhonePe / GPay Mobile Number', placeholder: 'e.g. 9876543210', hint: 'Allows customers to pay directly to your phone number if their bank blocks QR codes' },
+                  { key: 'upi_name', label: 'Account Holder Name', placeholder: 'e.g. Vishal Vasita', hint: 'Exact name registered on your bank account' },
+                  { key: 'upi_qr_url', label: 'Custom QR Code Image URL (Optional)', placeholder: 'https://... or leave empty to auto-generate', hint: 'If provided, displays your exact official PhonePe / GPay QR image instead of the auto-generated code' },
+                  { key: 'upi_note', label: 'Payment Instruction', placeholder: 'e.g. Add order number in remarks', hint: 'Shown below the payment box' },
                 ].map((f) => (
                   <div key={f.key}>
                     <label htmlFor={`setting-${f.key}`} className="block text-sm font-medium text-navy mb-1.5">{f.label}</label>

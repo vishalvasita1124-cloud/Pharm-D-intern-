@@ -175,6 +175,8 @@ export default function OrderStatusPage() {
                 upiName={settings.upi_name ?? 'Pharm D Intern Notes'}
                 amount={order.amount}
                 orderNumber={order.order_number}
+                upiMobile={settings.upi_mobile}
+                qrImageUrl={settings.upi_qr_url}
               />
               {/* UTR form */}
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">

@@ -9,6 +9,8 @@ interface UpiPaymentBoxProps {
   amount: number;
   orderNumber: string;
   note?: string;
+  upiMobile?: string;
+  qrImageUrl?: string;
 }
 
 /**
@@ -22,7 +24,15 @@ function buildUpiLink(upiId: string) {
   return `upi://pay?pa=${encodeURIComponent(cleanId)}&cu=INR`;
 }
 
-export function UpiPaymentBox({ upiId, upiName, amount, orderNumber, note }: UpiPaymentBoxProps) {
+export function UpiPaymentBox({
+  upiId,
+  upiName,
+  amount,
+  orderNumber,
+  note,
+  upiMobile,
+  qrImageUrl,
+}: UpiPaymentBoxProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [qrError, setQrError] = useState(false);
 
@@ -39,39 +49,54 @@ export function UpiPaymentBox({ upiId, upiName, amount, orderNumber, note }: Upi
   const upiLink = buildUpiLink(activeUpiId);
 
   useEffect(() => {
-    if (!canvasRef.current) return;
+    if (qrImageUrl || !canvasRef.current) return;
     QRCode.toCanvas(canvasRef.current, upiLink, {
       width: 200,
       margin: 2,
       color: { dark: '#0f172a', light: '#ffffff' },
     }).catch(() => setQrError(true));
-  }, [upiLink]);
+  }, [upiLink, qrImageUrl]);
 
   return (
     <div className="bg-gradient-to-br from-teal-50 to-medical-50 border border-teal-200 rounded-2xl p-6">
-      <div className="flex items-center gap-2 mb-5">
-        <div className="w-8 h-8 rounded-lg bg-teal-600 flex items-center justify-center">
-          <Smartphone className="w-4 h-4 text-white" />
+      <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-teal-600 flex items-center justify-center">
+            <Smartphone className="w-4 h-4 text-white" />
+          </div>
+          <div>
+            <h3 className="font-bold text-navy text-sm">Pay via UPI (Normal Account)</h3>
+            <p className="text-gray-500 text-xs">Scan QR, enter UPI ID, or send to Mobile Number</p>
+          </div>
         </div>
-        <div>
-          <h3 className="font-bold text-navy text-sm">Pay via UPI</h3>
-          <p className="text-gray-500 text-xs">Scan QR or tap the button below to open your UPI app</p>
-        </div>
+        {upiName && (
+          <span className="text-[11px] bg-white border border-teal-200 text-teal-800 font-medium px-2.5 py-1 rounded-full">
+            Payee: {upiName}
+          </span>
+        )}
       </div>
 
       <div className="flex flex-col sm:flex-row gap-6 items-center">
         {/* QR Code */}
         <div className="flex-shrink-0 text-center">
-          {qrError ? (
+          {qrImageUrl ? (
+            <div className="p-2 bg-white rounded-xl shadow-sm border border-gray-100">
+              <img
+                src={qrImageUrl}
+                alt="UPI QR Code"
+                className="w-[200px] h-[200px] object-contain rounded"
+              />
+            </div>
+          ) : qrError ? (
             <div className="w-[200px] h-[200px] rounded-xl border-2 border-dashed border-gray-300 flex items-center justify-center bg-white">
-              <p className="text-gray-400 text-xs text-center px-4">QR unavailable — use UPI ID below</p>
+              <p className="text-gray-400 text-xs text-center px-4">QR unavailable — use UPI ID or Mobile below</p>
             </div>
           ) : (
             <div className="p-3 bg-white rounded-xl shadow-sm border border-gray-100">
               <canvas ref={canvasRef} className="block rounded" />
             </div>
           )}
-          <p className="text-[11px] text-gray-500 mt-1.5">Scan with any UPI app</p>
+          <p className="text-[11px] text-gray-500 mt-1.5">Scan with PhonePe, GPay, Paytm</p>
         </div>
 
         {/* Payment details */}
@@ -83,10 +108,10 @@ export function UpiPaymentBox({ upiId, upiName, amount, orderNumber, note }: Upi
             <p className="text-xs text-gray-400 mt-0.5">Indian Rupees (INR)</p>
           </div>
 
-          {/* UPI ID */}
+          {/* Option 1: UPI ID */}
           <div className="bg-white rounded-xl border border-gray-100 p-4">
             <div className="flex items-center justify-between mb-1.5">
-              <p className="text-xs text-gray-400 uppercase tracking-wide">Pay to UPI ID</p>
+              <p className="text-xs text-gray-400 uppercase tracking-wide">Method 1: Pay to UPI ID</p>
               {isPhonePe && (
                 <span className="text-[10px] text-teal-600 font-medium">Switch bank server if blocked &darr;</span>
               )}
@@ -125,6 +150,20 @@ export function UpiPaymentBox({ upiId, upiName, amount, orderNumber, note }: Upi
               </div>
             )}
           </div>
+
+          {/* Option 2: Mobile Number (PhonePe / GPay transfer) */}
+          {upiMobile && (
+            <div className="bg-white rounded-xl border border-gray-100 p-4">
+              <p className="text-xs text-gray-400 uppercase tracking-wide mb-1.5">Method 2: Pay to Mobile Number</p>
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <p className="text-navy font-bold text-sm tracking-wider">{upiMobile}</p>
+                  <p className="text-[11px] text-gray-400">PhonePe / Google Pay / Paytm</p>
+                </div>
+                <CopyButton text={upiMobile} label="Copy Mobile" />
+              </div>
+            </div>
+          )}
 
           {/* Open UPI App button */}
           <a
