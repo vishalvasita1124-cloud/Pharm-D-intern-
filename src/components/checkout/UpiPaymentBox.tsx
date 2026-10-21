@@ -12,26 +12,31 @@ interface UpiPaymentBoxProps {
 }
 
 /**
- * Builds a static UPI deep-link (no pre-filled amount).
- * This ensures the link works with any personal UPI ID on any bank
- * without triggering "bank limit exceeded" errors caused by NPCI P2P
- * dynamic collection restrictions on personal savings accounts.
+ * Builds a clean static UPI deep-link.
+ * Strips all order/invoice notes (tn) and mismatched business names (pn)
+ * because NPCI & bank fraud detection engines automatically block P2P personal
+ * accounts if they detect merchant keywords like 'Order' or name mismatches.
  */
-function buildUpiLink(upiId: string, name: string, orderNumber: string) {
-  const parts = [
-    `pa=${encodeURIComponent(upiId)}`,
-    `pn=${encodeURIComponent(name)}`,
-    `cu=INR`,
-    `tn=${encodeURIComponent(`Order ${orderNumber}`)}`,
-  ];
-  return `upi://pay?${parts.join('&')}`;
+function buildUpiLink(upiId: string) {
+  const cleanId = upiId.trim();
+  return `upi://pay?pa=${encodeURIComponent(cleanId)}&cu=INR`;
 }
 
 export function UpiPaymentBox({ upiId, upiName, amount, orderNumber, note }: UpiPaymentBoxProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [qrError, setQrError] = useState(false);
 
-  const upiLink = buildUpiLink(upiId, upiName, orderNumber);
+  const cleanConfigId = upiId.trim();
+  const isPhonePe = cleanConfigId.includes('@axl') || cleanConfigId.includes('@ybl') || cleanConfigId.includes('@ibl');
+  const baseUsername = cleanConfigId.split('@')[0];
+
+  const [activeUpiId, setActiveUpiId] = useState(cleanConfigId);
+
+  useEffect(() => {
+    setActiveUpiId(cleanConfigId);
+  }, [cleanConfigId]);
+
+  const upiLink = buildUpiLink(activeUpiId);
 
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -80,11 +85,45 @@ export function UpiPaymentBox({ upiId, upiName, amount, orderNumber, note }: Upi
 
           {/* UPI ID */}
           <div className="bg-white rounded-xl border border-gray-100 p-4">
-            <p className="text-xs text-gray-400 uppercase tracking-wide mb-2">Pay to UPI ID</p>
-            <div className="flex items-center justify-between gap-2">
-              <code className="text-navy font-bold text-sm break-all">{upiId}</code>
-              <CopyButton text={upiId} label="Copy UPI ID" />
+            <div className="flex items-center justify-between mb-1.5">
+              <p className="text-xs text-gray-400 uppercase tracking-wide">Pay to UPI ID</p>
+              {isPhonePe && (
+                <span className="text-[10px] text-teal-600 font-medium">Switch bank server if blocked &darr;</span>
+              )}
             </div>
+            <div className="flex items-center justify-between gap-2">
+              <code className="text-navy font-bold text-sm break-all">{activeUpiId}</code>
+              <CopyButton text={activeUpiId} label="Copy UPI ID" />
+            </div>
+
+            {/* Alternative PhonePe handles for Bank Limit bypass */}
+            {isPhonePe && (
+              <div className="mt-3 pt-2.5 border-t border-gray-100">
+                <p className="text-[11px] text-gray-500 mb-1.5 font-medium">
+                  If your bank says &ldquo;Limit Exceeded&rdquo;, try Yes Bank (@ybl) or ICICI (@ibl):
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {['@ybl', '@axl', '@ibl'].map((handle) => {
+                    const id = `${baseUsername}${handle}`;
+                    const isSelected = activeUpiId === id;
+                    return (
+                      <button
+                        key={handle}
+                        type="button"
+                        onClick={() => setActiveUpiId(id)}
+                        className={`text-xs px-2.5 py-1 rounded-md font-mono transition-all ${
+                          isSelected
+                            ? 'bg-teal-600 text-white font-bold shadow-xs'
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        }`}
+                      >
+                        {handle} {handle === '@ybl' ? '(Yes Bank)' : handle === '@axl' ? '(Axis)' : '(ICICI)'}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Open UPI App button */}
