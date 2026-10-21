@@ -59,10 +59,11 @@ export function OrderDetailModal({ order, onClose, onApprove, onReject }: OrderD
 
   const fields = [
     { icon: <Hash className="w-4 h-4 text-gray-400" />, label: 'Order Number', value: order.order_number },
-    { icon: <User className="w-4 h-4 text-gray-400" />, label: 'Customer', value: `${order.user_name || 'Unknown'} (${order.user_email})` },
+    { icon: <User className="w-4 h-4 text-gray-400" />, label: 'Customer', value: `${order.user_name || order.customer_name || 'Guest'} (${order.user_email || order.customer_email || 'No email'})` },
+    ...(order.customer_mobile ? [{ icon: <User className="w-4 h-4 text-gray-400" />, label: 'Customer Mobile', value: order.customer_mobile }] : []),
     { icon: <Package className="w-4 h-4 text-gray-400" />, label: 'Product', value: order.product_title },
     { icon: <CreditCard className="w-4 h-4 text-gray-400" />, label: 'Amount', value: `₹${order.amount} INR` },
-    { icon: <Hash className="w-4 h-4 text-gray-400" />, label: 'UTR Number', value: order.utr_number || '—' },
+    { icon: <Hash className="w-4 h-4 text-gray-400" />, label: 'Payment / UTR', value: order.utr_number || '—' },
     {
       icon: <Calendar className="w-4 h-4 text-gray-400" />,
       label: 'Order Date',

@@ -71,7 +71,7 @@ export type OrderStatus =
 export interface Order {
   id: string;
   order_number: string;
-  user_id: string;
+  user_id: string | null;
   product_id: string;
   product_title: string;
   amount: number;
@@ -82,11 +82,17 @@ export interface Order {
   rejection_reason: string | null;
   created_at: string;
   updated_at: string;
+  customer_email?: string | null;
+  customer_name?: string | null;
+  customer_mobile?: string | null;
 }
 
 export interface AdminOrder extends Order {
   user_email: string;
   user_name: string | null;
+  customer_email?: string | null;
+  customer_name?: string | null;
+  customer_mobile?: string | null;
 }
 
 // Stage 3: admin types

@@ -99,8 +99,11 @@ export function PaymentsTable({
                         <User className="w-3.5 h-3.5 text-medical-600" />
                       </div>
                       <div>
-                        <p className="font-medium text-navy text-xs">{order.user_name || '—'}</p>
-                        <p className="text-gray-400 text-xs">{order.user_email}</p>
+                        <p className="font-medium text-navy text-xs">{order.user_name || order.customer_name || 'Guest'}</p>
+                        <p className="text-gray-400 text-xs">{order.user_email || order.customer_email}</p>
+                        {order.customer_mobile && (
+                          <p className="text-[10px] text-teal-600 font-mono">{order.customer_mobile}</p>
+                        )}
                       </div>
                     </div>
                   </td>

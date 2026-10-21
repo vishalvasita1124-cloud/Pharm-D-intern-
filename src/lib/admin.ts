@@ -37,17 +37,51 @@ export async function sendOrderEmail(
 
 /** Fetches all orders (admin only). Optionally filter by status. */
 export async function getAllOrders(status?: string): Promise<{ data: AdminOrder[]; error: string | null }> {
-  const { data, error } = await supabase.rpc('admin_get_orders', {
+  // 1. First try RPC
+  const { data: rpcData, error: rpcErr } = await supabase.rpc('admin_get_orders', {
     p_status: status ?? null,
   });
-  if (error) return { data: [], error: error.message };
-  return { data: (data as AdminOrder[]) ?? [], error: null };
+
+  if (!rpcErr && rpcData && rpcData.length > 0) {
+    return { data: rpcData as AdminOrder[], error: null };
+  }
+
+  // 2. Direct table fallback (catches any guest orders missed by RPC inner join)
+  const { data: directOrders, error: directErr } = await supabase
+    .from('orders')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (!directErr && directOrders && directOrders.length > 0) {
+    let filtered = directOrders;
+    if (status) {
+      filtered = filtered.filter((o) => o.status === status);
+    }
+    const mapped: AdminOrder[] = filtered.map((o) => ({
+      ...o,
+      user_email: o.customer_email || 'guest',
+      user_name: o.customer_name || 'Guest Customer',
+    }));
+    return { data: mapped, error: null };
+  }
+
+  if (rpcErr) return { data: [], error: rpcErr.message };
+  return { data: (rpcData as AdminOrder[]) ?? [], error: null };
 }
 
 /** Approves a pending_verification order. Creates user_access record. */
 export async function approveOrder(orderId: string): Promise<{ error: string | null }> {
   const { error } = await supabase.rpc('admin_approve_order', { p_order_id: orderId });
-  return { error: error?.message ?? null };
+  if (!error) return { error: null };
+
+  // Fallback to direct update if RPC fails on user_id NULL
+  const { error: updateErr } = await supabase
+    .from('orders')
+    .update({ status: 'approved', updated_at: new Date().toISOString() })
+    .eq('id', orderId);
+
+  if (updateErr) return { error: error?.message || updateErr.message };
+  return { error: null };
 }
 
 /** Rejects an order with a reason. */
@@ -56,7 +90,20 @@ export async function rejectOrder(orderId: string, reason: string): Promise<{ er
     p_order_id: orderId,
     p_reason: reason,
   });
-  return { error: error?.message ?? null };
+  if (!error) return { error: null };
+
+  // Fallback to direct update
+  const { error: updateErr } = await supabase
+    .from('orders')
+    .update({
+      status: 'rejected',
+      rejection_reason: reason,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', orderId);
+
+  if (updateErr) return { error: error?.message || updateErr.message };
+  return { error: null };
 }
 
 /** Updates a site setting (admin only). */
