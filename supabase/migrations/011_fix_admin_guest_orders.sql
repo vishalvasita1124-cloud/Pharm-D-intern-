@@ -80,6 +80,7 @@ REVOKE ALL ON FUNCTION public.admin_get_orders(TEXT) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.admin_get_orders(TEXT) TO authenticated;
 
 -- 3. Fix admin_approve_order to safely handle guest checkouts (where user_id IS NULL)
+DROP FUNCTION IF EXISTS public.admin_approve_order(UUID);
 CREATE OR REPLACE FUNCTION public.admin_approve_order(p_order_id UUID)
 RETURNS void
 LANGUAGE plpgsql
