@@ -171,11 +171,11 @@ export default function OrderStatusPage() {
           {order.status === 'pending_payment' && (
             <>
               <UpiPaymentBox
-                upiId={settings.upi_id ?? 'pharmdinterns@upi'}
-                upiName={settings.upi_name ?? 'Pharm D Intern Notes'}
+                upiId={settings.upi_id || 'vasita.vishal@axl'}
+                upiName={settings.upi_name || 'Vishal Vasita'}
                 amount={order.amount}
                 orderNumber={order.order_number}
-                upiMobile={settings.upi_mobile}
+                upiMobile={settings.upi_mobile || '9512184197'}
                 qrImageUrl={settings.upi_qr_url}
               />
               {/* UTR form */}
