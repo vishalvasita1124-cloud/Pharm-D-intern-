@@ -18,6 +18,7 @@ CREATE POLICY "orders: admin update all"
   USING (public.is_admin());
 
 -- 2. Fix admin_get_orders: Use LEFT JOIN instead of INNER JOIN so guest orders (user_id IS NULL) are NEVER lost
+DROP FUNCTION IF EXISTS public.admin_get_orders(TEXT);
 CREATE OR REPLACE FUNCTION public.admin_get_orders(p_status TEXT DEFAULT NULL)
 RETURNS TABLE (
   id               UUID,
