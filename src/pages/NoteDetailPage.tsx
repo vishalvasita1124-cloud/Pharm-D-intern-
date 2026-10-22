@@ -89,6 +89,24 @@ export default function NoteDetailPage() {
     });
   }, [slug]);
 
+  useEffect(() => {
+    if (!product) return;
+    const prevTitle = document.title;
+    document.title = `${product.title} — Pharm D Intern Clinical Notes`;
+    const metaDesc = document.querySelector('meta[name="description"]');
+    const prevDesc = metaDesc?.getAttribute('content') || '';
+    if (metaDesc && product.description) {
+      metaDesc.setAttribute(
+        'content',
+        `${product.title}: ${product.description.slice(0, 150)}... Ward-ready Pharm D clinical notes for interns and students.`
+      );
+    }
+    return () => {
+      document.title = prevTitle;
+      if (metaDesc && prevDesc) metaDesc.setAttribute('content', prevDesc);
+    };
+  }, [product]);
+
   const { user, hasAccess, orderStatus, orderId, checking } = usePurchaseState(product?.id);
 
   if (loadingProduct) {

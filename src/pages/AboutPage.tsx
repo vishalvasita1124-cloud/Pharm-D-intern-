@@ -1,6 +1,16 @@
 import { BookOpen, Users, Target, Heart } from 'lucide-react';
+import { useEffect } from 'react';
 
 export default function AboutPage() {
+  useEffect(() => {
+    document.title = 'About Us — Pharm D Intern Notes & Clinical Pharmacy Education';
+    const metaDesc = document.querySelector('meta[name="description"]');
+    if (metaDesc) metaDesc.setAttribute('content', 'About Pharm D Intern Notes: Providing concise, ward-ready clinical pharmacy notes, study materials, and practical guidelines for Pharm D interns and students across India.');
+    return () => {
+      document.title = 'Pharm D Intern Notes — Clinical Pharmacy & Pharm D Notes for Interns';
+    };
+  }, []);
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="bg-gradient-to-br from-medical-950 to-medical-800 py-16">

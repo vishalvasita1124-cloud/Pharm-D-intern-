@@ -83,6 +83,25 @@ const TESTIMONIALS = [
   },
 ];
 
+const FAQS = [
+  {
+    q: 'What are Pharm D Intern Notes?',
+    a: 'Pharm D Intern Notes are concise, ward-ready clinical pharmacy study notes and reference guides crafted specifically for Doctor of Pharmacy (Pharm D) interns, students, and hospital pharmacists. They cover essential practical competencies like ECG interpretation, arterial blood gas (ABG) analysis, clinical lab values, chest X-rays, antibiotic dosing, and ward round monitoring.',
+  },
+  {
+    q: 'How do these Pharm D notes help during hospital ward rounds?',
+    a: 'During clinical rotations, interns need instant, reliable information at the bedside. Each Pharm D intern note synthesizes complex medical guidelines into step-by-step algorithms, key drug interactions, dosage calculators, and red flag clinical symptoms to help you actively contribute to patient care discussions.',
+  },
+  {
+    q: 'Are the notes available for instant PDF download?',
+    a: 'Yes! Once you complete a secure UPI payment, each clinical note is unlocked and available for instant PDF download on your personal dashboard. You can read them on your smartphone, tablet, or print them for quick pocket reference in the hospital.',
+  },
+  {
+    q: 'Who should use these clinical pharmacy notes?',
+    a: 'These notes are ideal for Pharm D students preparing for clinical rotations, 6th-year Pharm D interns undergoing hospital clerkships, M.Pharm pharmacy practice scholars, and practicing clinical pharmacists seeking quick diagnostic and therapeutic refresher notes.',
+  },
+];
+
 export default function HomePage() {
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -131,8 +150,7 @@ export default function HomePage() {
             </h1>
 
             <p className="text-xl md:text-2xl text-gray-300 leading-relaxed mb-10 max-w-2xl animate-slide-up">
-              Practical, concise and ward-ready notes designed for{' '}
-              <span className="text-white font-semibold">Pharm D students</span> and clinical pharmacy interns.
+              Ward-ready <span className="text-white font-semibold">Pharm D notes</span> and clinical pharmacy guides for every <span className="text-white font-semibold">Pharm D intern</span> and student. Master ECG, ABG, lab values &amp; hospital ward rounds.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 animate-fade-in">
@@ -277,6 +295,31 @@ export default function HomePage() {
                   <div className="font-semibold text-navy text-sm">{t.name}</div>
                   <div className="text-gray-400 text-xs mt-0.5">{t.role}</div>
                 </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── FAQ Section for SEO & Learners ───────────────────────────── */}
+      <section className="section-pad bg-gray-50 border-t border-gray-100">
+        <div className="container-custom max-w-4xl">
+          <div className="text-center mb-12">
+            <p className="text-teal-600 font-semibold text-sm uppercase tracking-wider mb-2">Knowledge Base &amp; FAQ</p>
+            <h2 className="text-3xl md:text-4xl font-extrabold text-navy mb-3">Frequently Asked Questions</h2>
+            <p className="text-gray-500 max-w-xl mx-auto text-sm">
+              Everything you need to know about our clinical pharmacy study materials and Pharm D intern notes.
+            </p>
+          </div>
+
+          <div className="space-y-4">
+            {FAQS.map((faq, i) => (
+              <div key={i} className="bg-white rounded-2xl p-6 border border-gray-200/80 shadow-sm">
+                <h3 className="font-bold text-navy text-lg mb-2 flex items-start gap-3">
+                  <span className="text-teal-600 font-extrabold text-base mt-0.5">Q.</span>
+                  {faq.q}
+                </h3>
+                <p className="text-gray-600 text-sm leading-relaxed pl-7">{faq.a}</p>
               </div>
             ))}
           </div>
