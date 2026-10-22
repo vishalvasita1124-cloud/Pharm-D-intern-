@@ -28,6 +28,13 @@ export default function NotesPage() {
   const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
+    document.title = 'Pharm D Notes — Clinical Pharmacy Notes for Pharm D Interns | Pharm D Intern Notes';
+    const metaDesc = document.querySelector('meta[name="description"]');
+    if (metaDesc) metaDesc.setAttribute('content', 'Browse all pharm d notes — ward-ready clinical pharmacy PDF notes for Pharm D interns. ECG, ABG, chest X-ray, antibiotic reference, lab values, ward round notes.');
+    return () => { document.title = 'Pharm D Intern Notes — Ward-Ready Clinical Pharmacy Notes for Pharm D Interns'; };
+  }, []);
+
+  useEffect(() => {
     Promise.all([getPublishedProducts(), getCategories()]).then(([prodRes, catRes]) => {
       setProducts(prodRes.data);
       setCategories(catRes.data);
@@ -90,12 +97,12 @@ export default function NotesPage() {
       {/* Header */}
       <div className="bg-gradient-to-br from-medical-950 to-medical-800 py-14">
         <div className="container-custom text-center">
-          <p className="text-teal-400 font-semibold text-sm uppercase tracking-wider mb-3">All Notes</p>
+          <p className="text-teal-400 font-semibold text-sm uppercase tracking-wider mb-3">Pharm D Notes</p>
           <h1 className="text-4xl md:text-5xl font-extrabold text-white mb-3">
-            Clinical Notes Marketplace
+            Pharm D Notes — Clinical Pharmacy Marketplace
           </h1>
           <p className="text-gray-300 text-lg max-w-xl mx-auto">
-            Browse all available ward-ready notes for Pharm D interns and clinical pharmacy learners.
+            Browse all ward-ready Pharm D notes for interns and clinical pharmacy learners. ECG, ABG, antibiotic, lab values &amp; more.
           </p>
         </div>
       </div>
