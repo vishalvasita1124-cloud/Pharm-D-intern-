@@ -15,6 +15,7 @@ import {
   Send,
   AlertCircle,
   Loader2,
+  MessageCircle,
 } from 'lucide-react';
 import { getOrderById, submitUTR, getSiteSettings } from '@/lib/orders';
 import { UpiPaymentBox } from '@/components/checkout/UpiPaymentBox';
@@ -140,6 +141,43 @@ export default function OrderStatusPage() {
             <h2 className="text-xl font-extrabold text-navy mb-2">{sc.title}</h2>
             <p className="text-gray-600 text-sm leading-relaxed">{sc.desc}</p>
           </div>
+
+          {/* WhatsApp Receipt Instruction for pending verification or payment */}
+          {order.status !== 'approved' && order.status !== 'cancelled' && (
+            <div className="bg-emerald-50 border-2 border-emerald-300 rounded-2xl p-5 shadow-xs">
+              <div className="flex items-start gap-3.5">
+                <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs mt-0.5">
+                  <MessageCircle className="w-5 h-5 fill-current" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-emerald-200/70 text-emerald-900 rounded-full text-[11px] font-bold uppercase tracking-wider mb-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
+                    Fast-Track Approval
+                  </div>
+                  <h3 className="font-bold text-navy text-sm sm:text-base leading-snug">
+                    Share Payment Receipt &amp; Course Name on WhatsApp
+                  </h3>
+                  <p className="text-gray-700 text-xs sm:text-sm mt-1.5 leading-relaxed">
+                    Please share your <strong>payment screenshot</strong> and course name (<strong>&ldquo;{order.product_title}&rdquo;</strong>) on WhatsApp to get your notes approved instantly:
+                  </p>
+
+                  <div className="mt-3.5 flex flex-wrap items-center gap-3">
+                    <a
+                      href={`https://wa.me/91${(settings.upi_mobile || '9512184197').replace(/\D/g, '')}?text=${encodeURIComponent(
+                        `Hi, I have paid ₹${order.amount} for "${order.product_title}" (Order: ${order.order_number}). Here is my payment receipt/screenshot:`
+                      )}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs sm:text-sm rounded-xl shadow-xs transition-all"
+                    >
+                      <MessageCircle className="w-4 h-4 fill-current" />
+                      Send Receipt on WhatsApp (+91 {settings.upi_mobile || '9512184197'})
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Order summary */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-3">

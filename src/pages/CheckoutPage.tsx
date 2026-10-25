@@ -21,14 +21,13 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { getProductById } from '@/lib/notes';
-import { createGuestOrder, submitUTR, getSiteSettings, checkUserAccess, completeRazorpayPayment } from '@/lib/orders';
+import { createGuestOrder, submitUTR, getSiteSettings, checkUserAccess } from '@/lib/orders';
 import { sendOrderEmail } from '@/lib/admin';
-import { openRazorpayCheckout } from '@/lib/razorpay';
 import { UpiPaymentBox } from '@/components/checkout/UpiPaymentBox';
 import { Spinner } from '@/components/ui/Spinner';
 import type { Order, Product } from '@/types';
 
-type Step = 'loading' | 'guest_info' | 'summary' | 'payment' | 'utr' | 'error';
+type Step = 'loading' | 'guest_info' | 'payment' | 'utr' | 'error';
 
 interface GuestInfo {
   name: string;
@@ -57,9 +56,6 @@ export default function CheckoutPage() {
   const [utrError, setUtrError] = useState('');
 
   const [pageError, setPageError] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<'razorpay' | 'upi'>('upi');
-  const [isProcessingRazorpay, setIsProcessingRazorpay] = useState(false);
-  const [razorpayError, setRazorpayError] = useState('');
 
   /** Load product + settings. Logged-in users skip guest_info step. */
   const init = useCallback(async () => {
@@ -109,7 +105,7 @@ export default function CheckoutPage() {
         return;
       }
 
-      setStep('summary');
+      setStep('payment');
     } else {
       // Guest: show info collection form first
       setStep('guest_info');
@@ -157,48 +153,7 @@ export default function CheckoutPage() {
       return;
     }
 
-    setStep('summary');
-  };
-
-  const handleProceedToPayment = () => {
-    if (paymentMethod === 'upi') {
-      setStep('payment');
-      return;
-    }
-
-    if (!order || !product) return;
-
-    setIsProcessingRazorpay(true);
-    setRazorpayError('');
-
-    const contactEmail = user ? (profile?.email || user.email) : guestInfo.email;
-    const contactName  = user ? (profile?.full_name || '')     : guestInfo.name;
-    const contactPhone = user ? (profile?.mobile || '')         : guestInfo.mobile;
-
-    openRazorpayCheckout({
-      keyId: settings.razorpay_key_id,
-      orderNumber: order.order_number,
-      productTitle: product.title,
-      amount: order.amount,
-      userEmail: contactEmail,
-      userName: contactName,
-      userContact: contactPhone,
-      onSuccess: async (paymentId: string) => {
-        const { error } = await completeRazorpayPayment(order.id, paymentId);
-        if (error) {
-          setRazorpayError('Payment succeeded, but granting access failed: ' + error);
-          setIsProcessingRazorpay(false);
-          return;
-        }
-        sendOrderEmail('approved', order.id);
-        navigate(`/orders/${order.id}`);
-      },
-      onError: (errMsg: string) => {
-        setRazorpayError(errMsg);
-        setIsProcessingRazorpay(false);
-      },
-      onDismiss: () => { setIsProcessingRazorpay(false); },
-    });
+    setStep('payment');
   };
 
   const handleUtrSubmit = async (e: React.FormEvent) => {
@@ -402,26 +357,26 @@ export default function CheckoutPage() {
         )}
 
         {/* ── Summary / Payment / UTR steps ── */}
-        {(step === 'summary' || step === 'payment' || step === 'utr') && order && safeProduct && (
+        {/* ── Payment / UTR steps ── */}
+        {(step === 'payment' || step === 'utr') && order && safeProduct && (
           <div className="max-w-2xl mx-auto space-y-6">
             {/* Step indicator */}
             <div className="flex items-center gap-2 text-xs font-semibold">
               {[
-                { key: 'summary', label: '1. Order Summary' },
-                { key: 'payment', label: '2. Payment' },
-                { key: 'utr', label: '3. Submit UTR' },
+                { key: 'payment', label: '1. Order & UPI Payment' },
+                { key: 'utr', label: '2. Confirm Payment' },
               ].map((s, i, arr) => (
                 <div key={s.key} className="flex items-center gap-2">
                   <span
                     className={
                       step === s.key
                         ? 'text-medical-700'
-                        : ['summary', 'payment', 'utr'].indexOf(step) > i
+                        : step === 'utr' && s.key === 'payment'
                         ? 'text-emerald-600'
                         : 'text-gray-400'
                     }
                   >
-                    {step !== s.key && ['summary', 'payment', 'utr'].indexOf(step) > i ? (
+                    {step === 'utr' && s.key === 'payment' ? (
                       <span className="inline-flex items-center gap-1">
                         <CheckCircle2 className="w-3.5 h-3.5" /> {s.label}
                       </span>
@@ -481,103 +436,6 @@ export default function CheckoutPage() {
               </div>
             </div>
 
-            {/* ── Payment Method ── */}
-            {step === 'summary' && (
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-                <h2 className="font-bold text-navy mb-4 flex items-center gap-2">
-                  <CreditCard className="w-5 h-5 text-teal-600" />
-                  Select Payment Method
-                </h2>
-
-                <div className="grid gap-3">
-                  {/* Razorpay */}
-                  <label
-                    onClick={() => { setPaymentMethod('razorpay'); setRazorpayError(''); }}
-                    className={`flex items-start gap-4 p-4 border-2 rounded-xl cursor-pointer transition-all ${
-                      paymentMethod === 'razorpay'
-                        ? 'border-teal-500 bg-teal-50/70 shadow-sm'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="method"
-                      value="razorpay"
-                      checked={paymentMethod === 'razorpay'}
-                      onChange={() => { setPaymentMethod('razorpay'); setRazorpayError(''); }}
-                      className="accent-teal-600 mt-1"
-                    />
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-bold text-navy text-sm">Online Payment (Razorpay)</span>
-                        <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-full">
-                          <Zap className="w-3 h-3 fill-emerald-600 text-emerald-600" /> Instant Access
-                        </span>
-                      </div>
-                      <p className="text-xs text-gray-500 mt-1">
-                        UPI (Google Pay, PhonePe, Paytm), Debit/Credit Cards &amp; Net Banking. Notes unlock immediately after payment!
-                      </p>
-                    </div>
-                  </label>
-
-                  {/* Manual UPI */}
-                  <label
-                    onClick={() => { setPaymentMethod('upi'); setRazorpayError(''); }}
-                    className={`flex items-start gap-4 p-4 border-2 rounded-xl cursor-pointer transition-all ${
-                      paymentMethod === 'upi'
-                        ? 'border-teal-500 bg-teal-50/70 shadow-sm'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="method"
-                      value="upi"
-                      checked={paymentMethod === 'upi'}
-                      onChange={() => { setPaymentMethod('upi'); setRazorpayError(''); }}
-                      className="accent-teal-600 mt-1"
-                    />
-                    <div className="flex-1">
-                      <p className="font-semibold text-navy text-sm">Manual UPI QR</p>
-                      <p className="text-xs text-gray-500 mt-1">
-                        Scan static QR or pay to UPI ID and submit UTR reference. (Manual admin verification)
-                      </p>
-                    </div>
-                  </label>
-                </div>
-
-                {razorpayError && (
-                  <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-xl flex items-start gap-2.5 text-xs text-red-700">
-                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-500" />
-                    <div>
-                      <p className="font-semibold">Payment Notice</p>
-                      <p>{razorpayError}</p>
-                    </div>
-                  </div>
-                )}
-
-                <div className="mt-5 flex items-center gap-2 text-xs text-gray-400">
-                  <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                  <span>256-bit secure encrypted transaction</span>
-                </div>
-
-                <button
-                  id="proceed-to-payment"
-                  onClick={handleProceedToPayment}
-                  disabled={isProcessingRazorpay}
-                  className="btn-primary w-full mt-6"
-                >
-                  {isProcessingRazorpay ? (
-                    <><Loader2 className="w-4 h-4 animate-spin" /> Opening Payment Gateway&hellip;</>
-                  ) : paymentMethod === 'razorpay' ? (
-                    <><Zap className="w-4 h-4" /> Pay Online &#8377;{order.amount} (Instant Access)</>
-                  ) : (
-                    <><Smartphone className="w-4 h-4" /> Proceed to UPI QR (&#8377;{order.amount})</>
-                  )}
-                </button>
-              </div>
-            )}
-
             {/* ── UPI Payment Box + UTR Form ── */}
             {(step === 'payment' || step === 'utr') && (
               <>
@@ -589,6 +447,44 @@ export default function CheckoutPage() {
                   upiMobile={settings.upi_mobile || '9512184197'}
                   qrImageUrl={settings.upi_qr_url}
                 />
+
+                {/* ── WhatsApp Receipt & Course Name Instruction ── */}
+                <div className="bg-emerald-50 border-2 border-emerald-300 rounded-2xl p-5 shadow-xs">
+                  <div className="flex items-start gap-3.5">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs mt-0.5">
+                      <MessageCircle className="w-5 h-5 fill-current" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-emerald-200/70 text-emerald-900 rounded-full text-[11px] font-bold uppercase tracking-wider mb-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
+                        Important Instruction
+                      </div>
+                      <h3 className="font-bold text-navy text-sm sm:text-base leading-snug">
+                        After payment, please share your payment receipt &amp; course name on WhatsApp
+                      </h3>
+                      <p className="text-gray-700 text-xs sm:text-sm mt-1.5 leading-relaxed">
+                        To unlock your notes immediately, please send a screenshot of your <strong>Payment Receipt</strong> along with the course/notes name (<strong>&ldquo;{safeProduct.title}&rdquo;</strong>) to our WhatsApp number:
+                      </p>
+
+                      <div className="mt-3.5 flex flex-wrap items-center gap-3">
+                        <a
+                          href={`https://wa.me/91${(settings.upi_mobile || '9512184197').replace(/\D/g, '')}?text=${encodeURIComponent(
+                            `Hi, I have completed the payment of ₹${order.amount} for "${safeProduct.title}" (Order: ${order.order_number}). Here is my payment receipt screenshot:`
+                          )}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs sm:text-sm rounded-xl shadow-xs transition-all"
+                        >
+                          <MessageCircle className="w-4 h-4 fill-current" />
+                          Share on WhatsApp (+91 {settings.upi_mobile || '9512184197'})
+                        </a>
+                        <span className="text-xs text-gray-500 font-medium">
+                          +91 {settings.upi_mobile || '9512184197'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
 
                 <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
                   <h2 className="font-bold text-navy mb-2 flex items-center gap-2">
