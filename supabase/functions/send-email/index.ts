@@ -225,8 +225,8 @@ Deno.serve(async (req) => {
       const { data: prof } = await admin
         .from('profiles')
         .select('role')
-        .eq('user_id', user.id)
-        .single();
+        .or(`user_id.eq.${user.id},email.eq.${user.email}`)
+        .maybeSingle();
       if (prof?.role !== 'admin') throw new Error('Not authorized');
     }
 
@@ -238,28 +238,38 @@ Deno.serve(async (req) => {
       .single();
     if (orderErr || !order) throw new Error('Order not found');
 
-    // For payment_received, verify the caller owns the order
-    if (type === 'payment_received' && order.user_id !== user.id) {
+    // For payment_received, verify the caller owns the order (if logged in)
+    if (type === 'payment_received' && order.user_id && order.user_id !== user.id) {
       throw new Error('Not authorized');
     }
 
-    // Fetch recipient profile
-    const { data: recipient } = await admin
-      .from('profiles')
-      .select('email, full_name')
-      .eq('user_id', order.user_id)
-      .single();
+    // Fetch recipient: either from profile or directly from guest order fields
+    let recipientEmail = order.customer_email || '';
+    let recipientName = order.customer_name || 'Valued Customer';
 
-    if (!recipient?.email) throw new Error('User email not found');
+    if (order.user_id) {
+      const { data: recipient } = await admin
+        .from('profiles')
+        .select('email, full_name')
+        .eq('user_id', order.user_id)
+        .maybeSingle();
+
+      if (recipient?.email) {
+        recipientEmail = recipient.email;
+        recipientName = recipient.full_name || recipientName;
+      }
+    }
+
+    if (!recipientEmail) throw new Error('Customer email not found on order');
 
     // Build email
     let email: { subject: string; html: string };
     if (type === 'payment_received') {
-      email = paymentReceivedEmail(order, recipient.full_name || '');
+      email = paymentReceivedEmail(order, recipientName);
     } else if (type === 'approved') {
-      email = approvedEmail(order, recipient.full_name || '');
+      email = approvedEmail(order, recipientName);
     } else if (type === 'rejected') {
-      email = rejectedEmail(order, recipient.full_name || '');
+      email = rejectedEmail(order, recipientName);
     } else {
       throw new Error(`Unknown email type: ${type}`);
     }
@@ -273,7 +283,7 @@ Deno.serve(async (req) => {
       },
       body: JSON.stringify({
         from: FROM_EMAIL,
-        to: [recipient.email],
+        to: [recipientEmail],
         subject: email.subject,
         html: email.html,
       }),

@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, BookOpen, AlertCircle, CheckCircle2, User, Mail, Phone, Lock } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Eye, EyeOff, BookOpen, AlertCircle, CheckCircle2, User, Mail, Phone, Lock, Sparkles } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Spinner } from '@/components/ui/Spinner';
 
@@ -33,12 +33,23 @@ function FieldIcon({ icon }: { icon: React.ReactNode }) {
 export default function RegisterPage() {
   const { signUp } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const initialEmail = searchParams.get('email') ?? '';
 
-  const [form, setForm] = useState<FormData>(INITIAL);
+  const [form, setForm] = useState<FormData>({
+    ...INITIAL,
+    email: initialEmail,
+  });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+
+  useEffect(() => {
+    if (initialEmail) {
+      setForm((f) => ({ ...f, email: initialEmail }));
+    }
+  }, [initialEmail]);
 
   const update = (key: keyof FormData) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm((f) => ({ ...f, [key]: e.target.value }));
@@ -116,6 +127,17 @@ export default function RegisterPage() {
           </Link>
           <h1 className="text-2xl font-extrabold text-white mt-4 mb-1">Create your account</h1>
           <p className="text-gray-400">Join Pharm D Intern Notes — it's free</p>
+        </div>
+
+        {/* Helpful notice for buyers */}
+        <div className="bg-teal-500/15 border border-teal-400/30 rounded-2xl p-4 mb-5 backdrop-blur-md">
+          <div className="flex items-start gap-3">
+            <Sparkles className="w-5 h-5 text-teal-300 shrink-0 mt-0.5" />
+            <div className="text-xs text-teal-100 leading-relaxed">
+              <strong className="text-white block mb-0.5">Purchased notes earlier?</strong>
+              Register with the <strong>same email address</strong> you entered during payment, and all your approved notes &amp; PDFs will automatically be linked to your account!
+            </div>
+          </div>
         </div>
 
         <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-3xl p-8 shadow-2xl">

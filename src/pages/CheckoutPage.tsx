@@ -9,11 +9,8 @@ import {
   Tag,
   Lock,
   Smartphone,
-  CreditCard,
   Send,
   Loader2,
-  Zap,
-  ShieldCheck,
   MessageCircle,
   Mail,
   User,
@@ -57,7 +54,7 @@ export default function CheckoutPage() {
 
   const [pageError, setPageError] = useState('');
 
-  /** Load product + settings. Logged-in users skip guest_info step. */
+  /** Load product + settings. All users must fill contact info form. */
   const init = useCallback(async () => {
     if (!productId) {
       setStep('error');
@@ -84,32 +81,16 @@ export default function CheckoutPage() {
         return;
       }
 
-      // Create order immediately using logged-in user's profile
-      const { data: ord, error: ordErr } = await createGuestOrder(
-        productId,
-        profile?.email || user.email || '',
-        profile?.full_name || '',
-        profile?.mobile || ''
-      );
-
-      if (ordErr || !ord) {
-        setStep('error');
-        setPageError(ordErr ?? 'Failed to create order.');
-        return;
-      }
-
-      setOrder(ord);
-
-      if (ord.status === 'pending_verification' || ord.status === 'approved') {
-        navigate(`/orders/${ord.id}`, { replace: true });
-        return;
-      }
-
-      setStep('payment');
-    } else {
-      // Guest: show info collection form first
-      setStep('guest_info');
+      // Pre-fill the contact form with profile data, then show form
+      setGuestInfo({
+        name: profile?.full_name || '',
+        email: profile?.email || user.email || '',
+        mobile: profile?.mobile || '',
+      });
     }
+
+    // Everyone must confirm contact details before payment
+    setStep('guest_info');
   }, [productId, user, profile, navigate]);
 
   useEffect(() => { init(); }, [init]);
@@ -257,6 +238,36 @@ export default function CheckoutPage() {
               <p className="text-2xl font-extrabold text-navy shrink-0">&#8377;{safeProduct.price}</p>
             </div>
 
+            {/* WhatsApp receipt instruction */}
+            <div className="bg-emerald-50 border-2 border-emerald-300 rounded-2xl p-5 shadow-sm">
+              <div className="flex items-start gap-3.5">
+                <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 mt-0.5">
+                  <MessageCircle className="w-5 h-5 fill-current" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-emerald-200/70 text-emerald-900 rounded-full text-[11px] font-bold uppercase tracking-wider mb-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
+                    Important — After Payment
+                  </div>
+                  <h3 className="font-bold text-navy text-sm sm:text-base leading-snug">
+                    Share your payment screenshot on WhatsApp to unlock access instantly
+                  </h3>
+                  <p className="text-gray-600 text-xs sm:text-sm mt-1.5 leading-relaxed">
+                    After completing your UPI payment, send a <strong>screenshot of your payment receipt</strong> along with the notes name to our WhatsApp number. Your notes will be activated within minutes.
+                  </p>
+                  <a
+                    href={`https://wa.me/91${(settings.upi_mobile || '9512184197').replace(/\D/g, '')}?text=${encodeURIComponent('Hi, I have completed the payment. Here is my payment receipt screenshot:')}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 mt-3.5 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs sm:text-sm rounded-xl shadow-sm transition-all"
+                  >
+                    <MessageCircle className="w-4 h-4 fill-current" />
+                    WhatsApp: +91 {settings.upi_mobile || '9512184197'}
+                  </a>
+                </div>
+              </div>
+            </div>
+
             {/* Info form */}
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
               <h2 className="font-bold text-navy mb-1 flex items-center gap-2">
@@ -340,12 +351,14 @@ export default function CheckoutPage() {
                 </button>
               </form>
 
-              <p className="text-center text-xs text-gray-400 mt-4">
-                Already have an account?{' '}
-                <Link to={`/login?redirect=/checkout/${productId}`} className="text-teal-600 hover:underline font-medium">
-                  Sign In
-                </Link>
-              </p>
+              {!user && (
+                <p className="text-center text-xs text-gray-400 mt-4">
+                  Already have an account?{' '}
+                  <Link to={`/login?redirect=/checkout/${productId}`} className="text-teal-600 hover:underline font-medium">
+                    Sign In
+                  </Link>
+                </p>
+              )}
             </div>
 
             {/* Trust badge */}
@@ -439,31 +452,22 @@ export default function CheckoutPage() {
             {/* ── UPI Payment Box + UTR Form ── */}
             {(step === 'payment' || step === 'utr') && (
               <>
-                <UpiPaymentBox
-                  upiId={settings.upi_id || 'vasita.vishal@axl'}
-                  upiName={settings.upi_name || 'Vishal Vasita'}
-                  amount={order.amount}
-                  orderNumber={order.order_number}
-                  upiMobile={settings.upi_mobile || '9512184197'}
-                  qrImageUrl={settings.upi_qr_url}
-                />
-
-                {/* ── WhatsApp Receipt & Course Name Instruction ── */}
-                <div className="bg-emerald-50 border-2 border-emerald-300 rounded-2xl p-5 shadow-xs">
+                {/* ── Clear WhatsApp Receipt & Course Name Instruction (Right before Payment Form) ── */}
+                <div className="bg-emerald-50 border-2 border-emerald-400 rounded-2xl p-5 shadow-sm">
                   <div className="flex items-start gap-3.5">
                     <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs mt-0.5">
                       <MessageCircle className="w-5 h-5 fill-current" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-emerald-200/70 text-emerald-900 rounded-full text-[11px] font-bold uppercase tracking-wider mb-1.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
-                        Important Instruction
+                      <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-emerald-200/80 text-emerald-950 rounded-full text-[11px] font-bold uppercase tracking-wider mb-1.5">
+                        <span className="w-2 h-2 rounded-full bg-emerald-600 animate-ping" />
+                        Important: Action Required After Payment
                       </div>
-                      <h3 className="font-bold text-navy text-sm sm:text-base leading-snug">
-                        After payment, please share your payment receipt &amp; course name on WhatsApp
+                      <h3 className="font-extrabold text-navy text-sm sm:text-base leading-snug">
+                        Share your payment receipt &amp; notes name on WhatsApp for instant unlock
                       </h3>
                       <p className="text-gray-700 text-xs sm:text-sm mt-1.5 leading-relaxed">
-                        To unlock your notes immediately, please send a screenshot of your <strong>Payment Receipt</strong> along with the course/notes name (<strong>&ldquo;{safeProduct.title}&rdquo;</strong>) to our WhatsApp number:
+                        Immediately after making payment via QR or Mobile Number below, please share a screenshot of your <strong>Payment Receipt</strong> along with the notes title (<strong>&ldquo;{safeProduct.title}&rdquo;</strong>) to our WhatsApp number. Your notes access will be activated within minutes!
                       </p>
 
                       <div className="mt-3.5 flex flex-wrap items-center gap-3">
@@ -473,7 +477,7 @@ export default function CheckoutPage() {
                           )}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs sm:text-sm rounded-xl shadow-xs transition-all"
+                          className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs sm:text-sm rounded-xl shadow-sm transition-all"
                         >
                           <MessageCircle className="w-4 h-4 fill-current" />
                           Share on WhatsApp (+91 {settings.upi_mobile || '9512184197'})
@@ -485,6 +489,15 @@ export default function CheckoutPage() {
                     </div>
                   </div>
                 </div>
+
+                <UpiPaymentBox
+                  upiId={settings.upi_id || 'vasita.vishal@axl'}
+                  upiName={settings.upi_name || 'Vishal Vasita'}
+                  amount={order.amount}
+                  orderNumber={order.order_number}
+                  upiMobile={settings.upi_mobile || '9512184197'}
+                  qrImageUrl={settings.upi_qr_url}
+                />
 
                 <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
                   <h2 className="font-bold text-navy mb-2 flex items-center gap-2">

@@ -50,8 +50,15 @@ export async function submitUTR(orderId: string, utr: string): Promise<{ data: O
 
 // ── Fetching orders ───────────────────────────────────────────────────────────
 
-/** Fetches all orders for the current user (most recent first). */
+/** Fetches all orders for the current user (most recent first). Automatically syncs guest orders by email. */
 export async function getUserOrders(): Promise<{ data: Order[]; error: string | null }> {
+  // Sync any guest orders placed with the user's email
+  try {
+    await supabase.rpc('sync_my_orders_and_access');
+  } catch (e) {
+    // Non-blocking sync
+  }
+
   const { data, error } = await supabase
     .from('orders')
     .select('*')
@@ -100,6 +107,13 @@ export async function getActiveOrderForProduct(productId: string): Promise<{ dat
 
 /** Checks whether the current user has approved access to a product. */
 export async function checkUserAccess(productId: string): Promise<{ hasAccess: boolean; access: UserAccess | null; error: string | null }> {
+  // Sync any guest orders by email
+  try {
+    await supabase.rpc('sync_my_orders_and_access');
+  } catch (e) {
+    // Non-blocking
+  }
+
   const { data, error } = await supabase
     .from('user_access')
     .select('*')
@@ -112,6 +126,13 @@ export async function checkUserAccess(productId: string): Promise<{ hasAccess: b
 
 /** Fetches all user_access records for the current user. */
 export async function getUserAccessList(): Promise<{ data: UserAccess[]; error: string | null }> {
+  // Sync any guest orders by email
+  try {
+    await supabase.rpc('sync_my_orders_and_access');
+  } catch (e) {
+    // Non-blocking
+  }
+
   const { data, error } = await supabase
     .from('user_access')
     .select('*')
@@ -127,25 +148,10 @@ export async function getUserAccessList(): Promise<{ data: UserAccess[]; error: 
 export async function getSiteSettings(): Promise<{ data: Record<string, string>; error: string | null }> {
   const { data, error } = await supabase.from('site_settings').select('*');
 
+
   if (error) return { data: {}, error: error.message };
   const map: Record<string, string> = {};
   (data as SiteSetting[]).forEach((s) => { map[s.key] = s.value; });
   return { data: map, error: null };
-}
-
-// ── Razorpay Online Payment ───────────────────────────────────────────────────
-
-/** Completes an order using Razorpay payment ID and instantly grants user access. */
-export async function completeRazorpayPayment(
-  orderId: string,
-  paymentId: string
-): Promise<{ data: Order | null; error: string | null }> {
-  const { data, error } = await supabase.rpc('complete_razorpay_payment', {
-    p_order_id: orderId,
-    p_payment_id: paymentId,
-  });
-
-  if (error) return { data: null, error: error.message };
-  return { data: data as Order, error: null };
 }
 

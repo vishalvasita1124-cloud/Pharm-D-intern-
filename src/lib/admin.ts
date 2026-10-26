@@ -9,7 +9,10 @@ export async function sendOrderEmail(
   orderId: string,
 ): Promise<{ error: string | null }> {
   const { data: { session } } = await supabase.auth.getSession();
-  if (!session) return { error: 'Not authenticated' };
+  if (!session) {
+    console.warn('[sendOrderEmail] No active session to send email');
+    return { error: 'Not authenticated' };
+  }
 
   try {
     const res = await fetch(
@@ -23,12 +26,16 @@ export async function sendOrderEmail(
         body: JSON.stringify({ type, order_id: orderId }),
       },
     );
+    const json = await res.json().catch(() => ({}));
     if (!res.ok) {
-      const json = await res.json().catch(() => ({}));
-      return { error: (json as { error?: string }).error ?? 'Email send failed' };
+      const errMsg = (json as { error?: string }).error ?? `Email send failed (${res.status})`;
+      console.error('[sendOrderEmail] Failed:', errMsg);
+      return { error: errMsg };
     }
+    console.log(`[sendOrderEmail] Successfully sent ${type} email for order:`, orderId);
     return { error: null };
   } catch (e) {
+    console.error('[sendOrderEmail] Network error:', e);
     return { error: (e as Error).message };
   }
 }
@@ -86,13 +93,16 @@ export async function approveOrder(orderId: string): Promise<{ error: string | n
 
 /** Rejects an order with a reason. */
 export async function rejectOrder(orderId: string, reason: string): Promise<{ error: string | null }> {
-  const { error } = await supabase.rpc('admin_reject_order', {
+  const { error: rpcErr } = await supabase.rpc('admin_reject_order', {
     p_order_id: orderId,
     p_reason: reason,
   });
-  if (!error) return { error: null };
+  if (!rpcErr) return { error: null };
 
-  // Fallback to direct update
+  // Log RPC error so it's visible in browser console
+  console.error('[rejectOrder] RPC error:', rpcErr);
+
+  // Fallback: direct table update
   const { error: updateErr } = await supabase
     .from('orders')
     .update({
@@ -102,7 +112,10 @@ export async function rejectOrder(orderId: string, reason: string): Promise<{ er
     })
     .eq('id', orderId);
 
-  if (updateErr) return { error: error?.message || updateErr.message };
+  if (updateErr) {
+    console.error('[rejectOrder] Direct update error:', updateErr);
+    return { error: rpcErr.message || updateErr.message };
+  }
   return { error: null };
 }
 

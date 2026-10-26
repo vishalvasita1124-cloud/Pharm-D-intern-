@@ -10,8 +10,11 @@ interface AuthContextValue {
   loading: boolean;
   signUp: (params: SignUpParams) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
+  signInWithOtp: (email: string) => Promise<{ error: Error | null }>;
+  verifyOtp: (email: string, token: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
+  syncPurchases: () => Promise<void>;
 }
 
 interface SignUpParams {
@@ -47,6 +50,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
 
+  const syncPurchases = useCallback(async () => {
+    try {
+      await supabase.rpc('sync_my_orders_and_access');
+    } catch (e) {
+      console.warn('sync_my_orders_and_access error:', e);
+    }
+  }, []);
+
   const refreshProfile = useCallback(async () => {
     if (!user) return;
     const p = await fetchProfile(user.id);
@@ -61,6 +72,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (session?.user) {
         const p = await fetchProfile(session.user.id);
         setProfile(p);
+        syncPurchases();
       }
       setLoading(false);
     });
@@ -73,6 +85,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (session?.user) {
           const p = await fetchProfile(session.user.id);
           setProfile(p);
+          syncPurchases();
         } else {
           setProfile(null);
         }
@@ -81,7 +94,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     );
 
     return () => subscription.unsubscribe();
-  }, [fetchProfile]);
+  }, [fetchProfile, syncPurchases]);
 
   const signUp = async ({ email, password, full_name, username, mobile }: SignUpParams) => {
     const { data, error } = await supabase.auth.signUp({
@@ -94,16 +107,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     if (error) return { error };
 
-    // Upsert profile (also handled by DB trigger, but safe to do here too)
+    // Upsert profile (also handled by DB trigger, safe fallback)
     if (data.user) {
-      await supabase.from('profiles').upsert({
-        user_id: data.user.id,
-        full_name,
-        username,
-        email,
-        mobile,
-        role: 'user',
-      });
+      try {
+        await supabase.from('profiles').upsert({
+          user_id: data.user.id,
+          full_name,
+          username,
+          email,
+          mobile,
+          role: 'user',
+        });
+        syncPurchases();
+      } catch (e) {
+        // Handled by DB trigger
+      }
     }
 
     return { error: null };
@@ -111,6 +129,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (!error) {
+      syncPurchases();
+    }
+    return { error: error ?? null };
+  };
+
+  const signInWithOtp = async (email: string) => {
+    const { error } = await supabase.auth.signInWithOtp({
+      email: email.trim(),
+      options: {
+        shouldCreateUser: true,
+      },
+    });
+    return { error: error ?? null };
+  };
+
+  const verifyOtp = async (email: string, token: string) => {
+    const { error } = await supabase.auth.verifyOtp({
+      email: email.trim(),
+      token: token.trim(),
+      type: 'email',
+    });
+    if (!error) {
+      syncPurchases();
+    }
     return { error: error ?? null };
   };
 
@@ -119,7 +162,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ session, user, profile, loading, signUp, signIn, signOut, refreshProfile }}>
+    <AuthContext.Provider
+      value={{
+        session,
+        user,
+        profile,
+        loading,
+        signUp,
+        signIn,
+        signInWithOtp,
+        verifyOtp,
+        signOut,
+        refreshProfile,
+        syncPurchases,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

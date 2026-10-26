@@ -16,7 +16,10 @@ import {
   AlertCircle,
   Loader2,
   MessageCircle,
+  Eye,
+  Sparkles,
 } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 import { getOrderById, submitUTR, getSiteSettings } from '@/lib/orders';
 import { UpiPaymentBox } from '@/components/checkout/UpiPaymentBox';
 import { StatusBadge } from '@/components/ui/StatusBadge';
@@ -25,6 +28,7 @@ import type { Order } from '@/types';
 
 export default function OrderStatusPage() {
   const { orderId } = useParams<{ orderId: string }>();
+  const { user } = useAuth();
   const [order, setOrder] = useState<Order | null>(null);
   const [settings, setSettings] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
@@ -144,31 +148,31 @@ export default function OrderStatusPage() {
 
           {/* WhatsApp Receipt Instruction for pending verification or payment */}
           {order.status !== 'approved' && order.status !== 'cancelled' && (
-            <div className="bg-emerald-50 border-2 border-emerald-300 rounded-2xl p-5 shadow-xs">
+            <div className="bg-emerald-50 border-2 border-emerald-400 rounded-2xl p-5 shadow-sm">
               <div className="flex items-start gap-3.5">
                 <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs mt-0.5">
                   <MessageCircle className="w-5 h-5 fill-current" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-emerald-200/70 text-emerald-900 rounded-full text-[11px] font-bold uppercase tracking-wider mb-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
-                    Fast-Track Approval
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-emerald-200/80 text-emerald-950 rounded-full text-[11px] font-bold uppercase tracking-wider mb-1.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-600 animate-ping" />
+                    Important: Fast-Track Note Activation
                   </div>
-                  <h3 className="font-bold text-navy text-sm sm:text-base leading-snug">
-                    Share Payment Receipt &amp; Course Name on WhatsApp
+                  <h3 className="font-extrabold text-navy text-sm sm:text-base leading-snug">
+                    Share Payment Receipt &amp; Notes Name on WhatsApp
                   </h3>
                   <p className="text-gray-700 text-xs sm:text-sm mt-1.5 leading-relaxed">
-                    Please share your <strong>payment screenshot</strong> and course name (<strong>&ldquo;{order.product_title}&rdquo;</strong>) on WhatsApp to get your notes approved instantly:
+                    To unlock your notes immediately, please send a screenshot of your <strong>Payment Receipt</strong> along with the notes title (<strong>&ldquo;{order.product_title}&rdquo;</strong>) to our WhatsApp number. Your notes will be activated right away:
                   </p>
 
                   <div className="mt-3.5 flex flex-wrap items-center gap-3">
                     <a
                       href={`https://wa.me/91${(settings.upi_mobile || '9512184197').replace(/\D/g, '')}?text=${encodeURIComponent(
-                        `Hi, I have paid ₹${order.amount} for "${order.product_title}" (Order: ${order.order_number}). Here is my payment receipt/screenshot:`
+                        `Hi, I have completed the payment of ₹${order.amount} for "${order.product_title}" (Order: ${order.order_number}). Here is my payment receipt screenshot:`
                       )}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs sm:text-sm rounded-xl shadow-xs transition-all"
+                      className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs sm:text-sm rounded-xl shadow-sm transition-all"
                     >
                       <MessageCircle className="w-4 h-4 fill-current" />
                       Send Receipt on WhatsApp (+91 {settings.upi_mobile || '9512184197'})
@@ -288,27 +292,69 @@ export default function OrderStatusPage() {
             </div>
           )}
 
+          {/* Approved access banner */}
+          {order.status === 'approved' && (
+            <div className="bg-gradient-to-br from-emerald-600 to-teal-700 text-white rounded-3xl p-6 sm:p-8 shadow-xl">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center">
+                  <BookOpen className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <span className="text-emerald-200 text-xs font-bold uppercase tracking-wider">Access Granted</span>
+                  <h3 className="text-xl font-extrabold text-white">Your Notes are Ready!</h3>
+                </div>
+              </div>
+              <p className="text-white/80 text-sm mb-6 leading-relaxed">
+                Payment verified for <strong>&ldquo;{order.product_title}&rdquo;</strong>.
+                {!user && order.customer_email && (
+                  <> Log in with <strong>{order.customer_email}</strong> anytime to view all your notes in your dashboard, or read them directly now:</>
+                )}
+              </p>
+
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Link
+                  to={`/my-notes/${order.product_id}/view`}
+                  id="view-approved-pdf-btn"
+                  className="flex-1 py-3 px-5 rounded-xl bg-white text-teal-900 font-bold text-sm shadow-md hover:bg-gray-50 active:scale-95 transition-all flex items-center justify-center gap-2"
+                >
+                  <Eye className="w-4 h-4 text-teal-700" />
+                  View &amp; Read PDF
+                </Link>
+                {!user ? (
+                  <Link
+                    to={`/login?email=${encodeURIComponent(order.customer_email || '')}`}
+                    id="login-with-payment-email-btn"
+                    className="flex-1 py-3 px-5 rounded-xl bg-white/15 border border-white/30 text-white font-bold text-sm hover:bg-white/25 active:scale-95 transition-all flex items-center justify-center gap-2"
+                  >
+                    <LayoutDashboard className="w-4 h-4" />
+                    Sign In with {order.customer_email ? order.customer_email.split('@')[0] : 'Email'}
+                  </Link>
+                ) : (
+                  <Link
+                    to="/my-notes"
+                    className="flex-1 py-3 px-5 rounded-xl bg-white/15 border border-white/30 text-white font-bold text-sm hover:bg-white/25 active:scale-95 transition-all flex items-center justify-center gap-2"
+                  >
+                    <BookOpen className="w-4 h-4" />
+                    My Notes Library
+                  </Link>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* CTAs */}
-          <div className="flex flex-col sm:flex-row gap-3">
-            {order.status === 'approved' ? (
-              <Link to="/dashboard" id="go-to-dashboard-btn" className="btn-primary flex-1 justify-center">
+          {order.status !== 'approved' && (
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Link to="/dashboard/orders" className="btn-secondary flex-1 justify-center">
                 <LayoutDashboard className="w-4 h-4" />
-                Go to My Dashboard
-                <ArrowRight className="w-4 h-4" />
+                My Orders
               </Link>
-            ) : (
-              <>
-                <Link to="/dashboard/orders" className="btn-secondary flex-1 justify-center">
-                  <LayoutDashboard className="w-4 h-4" />
-                  My Orders
-                </Link>
-                <Link to="/notes" className="btn-secondary flex-1 justify-center">
-                  <BookOpen className="w-4 h-4" />
-                  Browse More Notes
-                </Link>
-              </>
-            )}
-          </div>
+              <Link to="/notes" className="btn-secondary flex-1 justify-center">
+                <BookOpen className="w-4 h-4" />
+                Browse More Notes
+              </Link>
+            </div>
+          )}
         </div>
       </div>
     </div>
