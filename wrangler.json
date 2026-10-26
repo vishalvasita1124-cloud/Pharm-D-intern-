@@ -1,6 +1,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "pharm-d-intern",
+  "main": "worker/index.js",
   "compatibility_date": "2026-09-18",
   "observability": {
     "enabled": true
@@ -9,5 +10,8 @@
     "directory": "./dist",
     "not_found_handling": "single-page-application",
     "html_handling": "none"
+  },
+  "triggers": {
+    "crons": ["0 0 * * *"]
   }
 }
